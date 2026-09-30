@@ -2,26 +2,23 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Patient extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'full_name',
-        'mobile',
-        'national_code',
-        'gender',
         'file_number',
-        'birth_date',
+        'national_code',
+        'mobile',
+        'address',
     ];
 
     public function appointments()
     {
-        return $this->hasMany(Appointment::class, 'patient_id');
-    }
-
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class, 'patient_id');
+        return $this->hasMany(Appointment::class);
     }
 }

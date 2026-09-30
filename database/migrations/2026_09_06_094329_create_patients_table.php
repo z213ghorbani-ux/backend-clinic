@@ -13,13 +13,16 @@ return new class extends Migration
     {
         Schema::create('patients', function (Blueprint $table) {
             $table->id();
-            $table->string('file_number', 50)->nullable()->index(); // شماره پرونده کلینیک
-            $table->string('national_code', 10)->nullable()->index(); // کد ملی ۱۰ رقمی
-            $table->string('full_name', 150)->index(); // نام و نام خانوادگی
-            $table->string('mobile', 15)->index(); // شماره تماس برای SMS
+            $table->string('first_name');
+            $table->string('last_name');
+            $table->string('file_number', 50)->unique();
+            $table->string('national_id')->unique()->nullable();
+            $table->string('mobile')->nullable();
+            $table->string('phone')->nullable();
+            $table->date('birth_date')->nullable();
             $table->enum('gender', ['male', 'female', 'other'])->nullable();
-            $table->string('birth_date', 20)->nullable(); // فرمت شمسی یا میلادی
-            $table->text('notes')->nullable(); // یادداشت‌های ضروری
+            $table->text('address')->nullable();
+            $table->text('medical_history')->nullable();
             $table->timestamps();
         });
     }

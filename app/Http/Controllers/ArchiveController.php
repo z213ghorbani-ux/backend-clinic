@@ -9,6 +9,7 @@ use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -47,7 +48,6 @@ class ArchiveController extends Controller
             ->values()
             ->all();
 
-        // واکشی نام منشی/کاربری که درفت را ثبت کرده است
         $creatorUser = !empty($draft->user_id) ? DB::table('users')->where('id', $draft->user_id)->first() : null;
         $creatorName = $creatorUser?->name ?? 'کاربر پذیرش';
 
@@ -151,6 +151,50 @@ class ArchiveController extends Controller
         return Storage::disk('local')->download($file['path'], $file['name']);
     }
 
+    public function draftDownloadFile(int $id, int $fileIndex)
+    {
+        $draft = DB::table('lab_drafts')->where('id', $id)->first();
+        if (!$draft) {
+            return response()->json(['message' => 'پیش‌نویس مورد نظر یافت نشد.'], 404);
+        }
+
+        $services = json_decode($draft->services, true) ?: [];
+        $file = $services[$fileIndex]['file'] ?? null;
+
+        if (!$file) {
+            return response()->json(['message' => 'اطلاعات فایل در پیش‌نویس یافت نشد.'], 404);
+        }
+
+        $filePath = is_array($file) ? ($file['path'] ?? null) : $file;
+        $fileName = is_array($file) ? ($file['name'] ?? 'attachment.pdf') : 'attachment.pdf';
+
+        if (!$filePath) {
+            return response()->json(['message' => 'مسیر فایل نامعتبر است.'], 404);
+        }
+
+        $cleanPath = ltrim(str_replace(['/storage/', 'storage/', 'public/'], '', $filePath), '/\\');
+
+        if (Storage::disk('local')->exists($cleanPath)) {
+            return Storage::disk('local')->download($cleanPath, $fileName);
+        }
+
+        if (Storage::disk('public')->exists($cleanPath)) {
+            return Storage::disk('public')->download($cleanPath, $fileName);
+        }
+
+        if (file_exists(storage_path('app/' . $cleanPath))) {
+            return response()->download(storage_path('app/' . $cleanPath), $fileName);
+        }
+
+        if (file_exists(storage_path('app/public/' . $cleanPath))) {
+            return response()->download(storage_path('app/public/' . $cleanPath), $fileName);
+        }
+
+        Log::error("Lab draft physical file not found: {$cleanPath} for draft ID: {$id}");
+
+        return response()->json(['message' => 'فایل فیزیکی در سرور یافت نشد.'], 404);
+    }
+
     public function draftDestroy(int $id)
     {
         $draft = DB::table('lab_drafts')->find($id);
@@ -252,14 +296,12 @@ class ArchiveController extends Controller
             $formData = json_decode($formData, true) ?: [];
         }
 
-        // بررسی و استخراج شماره تماس حتی اگر در فیلد مستقیم فرم ثبت نشده باشد
         $patientMobile = $validated['mobile']
             ?? ($formData['mobile'] ?? null)
             ?? ($formData['phone'] ?? null)
             ?? ($formData['patient']['mobile'] ?? null)
             ?? ($formData['patient']['phone'] ?? null);
 
-        // تشخیص داینامیک هویت منشی ثبت‌کننده
         $user = Auth::user() ?? $request->user();
 
         $creatorName = $user?->name
@@ -274,7 +316,6 @@ class ArchiveController extends Controller
         $issuerId = $user?->id ?? $request->input('issued_by');
         $trackingToken = Str::random(32) . dechex(time());
 
-        // جمع‌آوری و ساخت تاریخچه یکپارچه اقدامات (Audit Trail)
         $initialHistory = [];
         $logId = 1;
 
@@ -338,7 +379,6 @@ class ArchiveController extends Controller
             'history'        => $initialHistory,
         ]);
 
-        // ارسال خودکار پیامک حاوی لینک پرتال به شماره بیمار
         if (!empty($patientMobile)) {
             try {
                 $this->smsService->sendResultLink(
@@ -361,9 +401,6 @@ class ArchiveController extends Controller
         ], 201);
     }
 
-    /**
-     * ارسال پیامک مجدد اطلاع‌رسانی لینک پرتال به بیمار
-     */
     public function notifyPatient($archiveId)
     {
         $archive = Archive::findOrFail($archiveId);
@@ -661,171 +698,306 @@ class ArchiveController extends Controller
 
     /**
      * ساخت PDF فاکتور پرتال بیمار با mPDF
+     * برای دیباگ HTML در مرورگر: افزودن ?html=1 به انتهای آدرس
      */
-    public function portalInvoicePdf($token)
+    public function portalInvoicePdf(Request $request, $token)
     {
-        $archive = Archive::where('tracking_token', $token)
-            ->orWhere('id', $token)
-            ->first();
+        // جستجوی هوشمند بر اساس tracking_token، id یا file_number
+        $archive = Archive::query()
+            ->where(function ($q) use ($token) {
+                $q->where('tracking_token', $token);
+                if (ctype_digit((string) $token)) {
+                    $q->orWhere('id', (int) $token);
+                }
+                $q->orWhere('file_number', (string) $token);
+            })
+            ->firstOrFail();
 
-        if (!$archive && is_numeric($token)) {
-            $archive = Archive::find($token);
-        }
-
-        if (!$archive) {
-            return response()->json(['message' => 'پرونده یافت نشد'], 404);
-        }
-
-        $formData = is_array($archive->form_data)
+        $data = is_array($archive->form_data)
             ? $archive->form_data
             : (json_decode($archive->form_data, true) ?: []);
+        $invoiceDetails = $data['invoiceDetails'] ?? [];
 
-        $rows = [];
-        $uniqueDoctors = [];
-        $totalAmount = 0;
-        $discount = 0;
-        $payableAmount = 0;
+        // ۱. اطلاعات بیمار
+        // اطلاعات ثبت‌شده در پنل بیماران (بر اساس کد ملی پرونده)
+        $patientRec = null;
+        try {
+            $patientRec = \App\Models\Patient::where('national_code', trim((string) $archive->national_code))->first();
+        } catch (\Throwable $e) {
+            $patientRec = null;
+        }
+        $pa = $patientRec ? $patientRec->getAttributes() : [];
 
-        $invoiceDetails = $formData['invoiceDetails'] ?? null;
+        $panelName = trim(($pa['first_name'] ?? '') . ' ' . ($pa['last_name'] ?? ''));
+        if ($panelName === '') {
+            $panelName = $pa['name'] ?? $pa['full_name'] ?? '';
+        }
 
-        if ($invoiceDetails && !empty($invoiceDetails['updatedQueue'])) {
-            $discount = (float)($invoiceDetails['discount'] ?? 0);
-            $totalAmount = (float)($invoiceDetails['totalPrice'] ?? 0);
-            $payableAmount = (float)($invoiceDetails['payableAmount'] ?? ($totalAmount - $discount));
+        $patient = [
+            'name'          => $panelName !== '' ? $panelName : ($archive->patient_name ?? 'نامشخص'),
+            'national_code' => $pa['national_code'] ?? $archive->national_code ?? '---',
+            'phone'         => $pa['mobile'] ?? $pa['phone'] ?? $archive->mobile ?? '---',
+        ];
 
-            foreach ($invoiceDetails['updatedQueue'] as $queue) {
-                $docData = $queue['doctor'] ?? [];
-                $docName = is_array($docData) ? ($docData['name'] ?? 'نامشخص') : (is_string($docData) ? $docData : 'نامشخص');
-                $docSpecialty = is_array($docData) ? ($docData['specialty'] ?? '') : '';
-                $rawDocStamp = is_array($docData) ? ($docData['stamp_url'] ?? $docData['stamp_path'] ?? $docData['signature_path'] ?? null) : null;
-                $doctorId = is_array($docData) ? ($docData['id'] ?? null) : ($queue['doctor_id'] ?? null);
+        $g = strtolower(trim((string) ($pa['gender'] ?? $pa['sex'] ?? '')));
+        $genderTitle = in_array($g, ['male', 'm', 'man', 'مرد', '1'], true) ? 'آقای'
+            : (in_array($g, ['female', 'f', 'woman', 'زن', '2'], true) ? 'خانم' : 'آقا/خانم');
 
-                if (empty($rawDocStamp)) {
-                    $docModel = null;
-                    if ($doctorId) {
-                        $docModel = Doctor::find($doctorId);
-                    } elseif (!empty($docName) && $docName !== 'نامشخص') {
-                        $docModel = Doctor::where('name', $docName)->first();
-                    }
+        // ۲. ردیف خدمات (زیرخدمت‌ها به‌عنوان اقلام اصلی جدول)
+        $serviceList = $data['services'] ?? [];
+        $serviceMeta = [];
+        foreach ($serviceList as $s) {
+            $serviceMeta[(string) ($s['serviceId'] ?? '')] = $s;
+        }
 
-                    if ($docModel) {
-                        $rawDocStamp = $docModel->stamp_path ?? $docModel->stamp_url ?? null;
-                        if (empty($docSpecialty)) {
-                            $docSpecialty = $docModel->specialty ?? '';
-                        }
-                    }
-                }
-
-                $docStamp = $this->resolveImageUrl($rawDocStamp);
-
-                if (!empty($docName) && $docName !== 'نامشخص' && !isset($uniqueDoctors[$docName])) {
-                    $uniqueDoctors[$docName] = [
-                        'name'      => $docName,
-                        'specialty' => $docSpecialty,
-                        'stamp_url' => $docStamp,
-                    ];
-                }
-
-                $services = $queue['services'] ?? [];
-                foreach ($services as $srv) {
-                    $price = (float)($srv['price'] ?? 0);
-                    $rows[] = [
-                        'service_code' => $srv['serviceCode'] ?? $srv['service_code'] ?? $srv['code'] ?? null,
-                        'title'        => (string)($srv['serviceTitle'] ?? $srv['customName'] ?? $srv['title'] ?? 'خدمت درمانی'),
-                        'doctor'       => (string)$docName,
-                        'amount'       => $price,
-                    ];
+        $pick = function (array $arr, array $keys) {
+            foreach ($keys as $k) {
+                if (isset($arr[$k]) && $arr[$k] !== '' && $arr[$k] !== null) {
+                    return $arr[$k];
                 }
             }
-        } elseif (!empty($formData['services'])) {
-            foreach ($formData['services'] as $srv) {
-                $docName = $srv['doctorName'] ?? ($srv['doctor']['name'] ?? 'نامشخص');
-                $doctorId = $srv['doctor_id'] ?? ($srv['doctor']['id'] ?? null);
-                $rawDocStamp = $srv['doctor']['stamp_url'] ?? $srv['doctor']['stamp_path'] ?? ($srv['stamp_path'] ?? null);
+            return null;
+        };
 
-                if (empty($rawDocStamp)) {
-                    $docModel = $doctorId ? Doctor::find($doctorId) : ($docName !== 'نامشخص' ? Doctor::where('name', $docName)->first() : null);
-                    if ($docModel) {
-                        $rawDocStamp = $docModel->stamp_path ?? $docModel->stamp_url ?? null;
-                    }
+        $findService = function ($sid) {
+            $sid = (string) $sid;
+            if ($sid === '' || $sid === 'other') {
+                return null;
+            }
+            $rec = ctype_digit($sid) ? \App\Models\Service::find((int) $sid) : null;
+            return $rec ?: \App\Models\Service::where('code', $sid)->first();
+        };
+
+        $expanded = false;
+        $rows = [];
+        foreach (($invoiceDetails['items'] ?? []) as $item) {
+            $sid        = (string) ($item['serviceId'] ?? '');
+            $meta       = $serviceMeta[$sid] ?? [];
+            $qty        = max(1, (int) ($item['count'] ?? 1));
+            $doctorName = $meta['doctorName'] ?? $item['doctorName'] ?? null;
+
+            $parentRec  = $findService($sid);
+            $parentName = $item['serviceTitle'] ?? $meta['serviceTitle'] ?? $parentRec?->name ?? 'خدمت درمانی';
+
+            // زیرخدمت‌های ذخیره‌شده در آیتم (اگر فرانت ذخیره کرده باشد)
+            $subs = $pick($item, ['children', 'subItems', 'sub_items', 'subservices', 'subServices']);
+            $subs = is_array($subs) ? $subs : [];
+
+            if (empty($subs)) {
+                $childId    = $pick($item, ['subserviceId', 'subServiceId', 'subservice_id', 'childId', 'child_id', 'itemId']);
+                $childTitle = $pick($item, ['subserviceTitle', 'subserviceName', 'subservice_name', 'childTitle', 'itemTitle', 'item_title']);
+                if ($childId !== null || $childTitle !== null) {
+                    $subs = [[
+                        'id'    => $childId,
+                        'title' => $childTitle,
+                        'price' => $item['price'] ?? null,
+                        'count' => $qty,
+                        'total' => $item['total'] ?? null,
+                    ]];
                 }
+            }
 
-                $docStamp = $this->resolveImageUrl($rawDocStamp);
-
-                if (!empty($docName) && $docName !== 'نامشخص' && !isset($uniqueDoctors[$docName])) {
-                    $uniqueDoctors[$docName] = [
-                        'name'      => $docName,
-                        'specialty' => $srv['doctorSpecialty'] ?? '',
-                        'stamp_url' => $docStamp,
+            // اگر خدمت انتخاب‌شده والد است و زیرخدمت ذخیره نشده، اقلام زیرمجموعه‌اش درج شود
+            if (empty($subs) && $parentRec && !$parentRec->is_visit) {
+                foreach ($parentRec->children as $child) {
+                    $subs[] = [
+                        'id'    => $child->id,
+                        'title' => $child->name,
+                        'price' => $child->price,
+                        'count' => 1,
+                        'code'  => $child->code,
                     ];
                 }
+                if (!empty($subs)) {
+                    $expanded = true;
+                }
+            }
 
+            if (!empty($subs)) {
+                foreach ($subs as $sub) {
+                    $subId  = $pick($sub, ['id', 'serviceId', 'subserviceId']);
+                    $subRec = ($subId !== null && ctype_digit((string) $subId)) ? \App\Models\Service::find((int) $subId) : null;
+                    $subQty = max(1, (int) ($sub['count'] ?? 1));
+                    $price  = (float) ($sub['price'] ?? $subRec?->price ?? 0);
+                    $total  = isset($sub['total']) ? (float) $sub['total'] : $price * $subQty;
+                    $code   = $sub['code'] ?? $subRec?->code ?? '-';
+
+                    $rows[] = [
+                        'code'         => $code ?: '-',
+                        'parent_name'  => $parentName,
+                        'service_name' => $pick($sub, ['title', 'name', 'serviceTitle']) ?? $subRec?->name ?? $parentName,
+                        'amount'       => $total,
+                        'doctor_name'  => $doctorName,
+                    ];
+                }
+                continue;
+            }
+
+            $code = $meta['serviceCode'] ?? $meta['service_code'] ?? '-';
+            if (($code === '-' || $code === '' || $code === null) && $parentRec) {
+                $code = $parentRec->code ?: '-';
+            }
+
+            $rows[] = [
+                'code'         => $code ?: '-',
+                'parent_name'  => null,
+                'service_name' => $parentName,
+                'amount'       => (float) ($item['total'] ?? (($item['price'] ?? 0) * $qty)),
+                'doctor_name'  => $doctorName,
+            ];
+        }
+
+        if (empty($rows)) {
+            foreach ($serviceList as $s) {
                 $rows[] = [
-                    'service_code' => $srv['serviceCode'] ?? $srv['service_code'] ?? null,
-                    'title'        => (string)($srv['serviceTitle'] ?? 'خدمت درمانی'),
-                    'doctor'       => (string)$docName,
-                    'amount'       => (float)($srv['price'] ?? 0),
+                    'code'         => $s['serviceCode'] ?? $s['service_code'] ?? '-',
+                    'parent_name'  => null,
+                    'service_name' => $s['serviceTitle'] ?? 'خدمت درمانی',
+                    'amount'       => 0.0,
+                    'doctor_name'  => $s['doctorName'] ?? null,
                 ];
             }
         }
 
-        if ($totalAmount == 0 && count($rows) > 0) {
-            $totalAmount = array_sum(array_column($rows, 'amount'));
-            $payableAmount = max(0, $totalAmount - $discount);
+        // ۳. پزشک خدمت «ویزیت» (خدمتی که تیک is_visit دارد) + مهرش
+        $visitDoctorIds = [];
+        foreach ($serviceList as $s) {
+            $srec = $findService($s['serviceId'] ?? '');
+            $isVisit = $srec
+                ? (bool) $srec->is_visit
+                : mb_strpos((string) ($s['serviceTitle'] ?? ''), 'ویزیت') !== false;
+            if ($isVisit && !empty($s['doctorId'])) {
+                $visitDoctorIds[] = $s['doctorId'];
+            }
+        }
+        $visitDoctorIds = array_values(array_unique($visitDoctorIds));
+
+        $visitDoctors = [];
+        foreach ($visitDoctorIds as $did) {
+            $rec   = Doctor::find($did);
+            $attrs = $rec ? $rec->getAttributes() : [];
+            $fallbackName = collect($serviceList)->firstWhere('doctorId', $did)['doctorName'] ?? null;
+
+            // هر ستونی که اسمش شبیه مهر/امضا باشد
+            $stampPath = null;
+            foreach ($attrs as $k => $v) {
+                if ($v && is_string($v) && preg_match('/stamp|signature|seal/i', (string) $k)) {
+                    $stampPath = $v;
+                    break;
+                }
+            }
+            $stamp = $this->resolveImageUrl($stampPath);
+
+            // اگر در دیتابیس نبود: جستجو در پوشه doctors با شناسه پزشک
+            if (!$stamp) {
+                foreach (glob(storage_path("app/public/doctors/*{$did}*")) ?: [] as $f) {
+                    if (is_file($f)) {
+                        $stamp = $this->resolveImageUrl('doctors/' . basename($f));
+                        if ($stamp) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            $visitDoctors[] = [
+                'name'  => $attrs['name'] ?? $fallbackName ?? '---',
+                'stamp' => $stamp,
+            ];
         }
 
-        $createdAt = method_exists($this, 'toPersianDate')
-            ? $this->toPersianDate($archive->issued_at ?? $archive->created_at)
-            : ($archive->issued_at ?? $archive->created_at ?? '—');
+        // ۴. متن تکمیلی گواهی (اختیاری)
+        $doctorPrescriptionText = $data['doctorPrescriptionText']
+            ?? $data['prescription']
+            ?? $data['doctor_note']
+            ?? $invoiceDetails['doctorPrescriptionText']
+            ?? $invoiceDetails['prescription']
+            ?? $invoiceDetails['doctor_note']
+            ?? '';
 
-        while (ob_get_level()) {
-            ob_end_clean();
+        if (is_array($doctorPrescriptionText)) {
+            $doctorPrescriptionText = implode("\n", array_filter($doctorPrescriptionText));
         }
 
-        $patientName = (string)($archive->patient_name ?? ($formData['patient']['name'] ?? '—'));
+        // ۵. محاسبات (تومان)
+        $totalAmount = array_sum(array_column($rows, 'amount'));
+        $calcTotal   = (float) ($invoiceDetails['totalAmount'] ?? $totalAmount);
+        if ($expanded || ($calcTotal <= 0 && $totalAmount > 0)) {
+            $calcTotal = (float) $totalAmount;
+        }
+        $discount  = (float) ($invoiceDetails['discount'] ?? 0);
+        $insurance = (float) ($invoiceDetails['insurance_amount'] ?? 0);
+        $payable   = max(0, $calcTotal - $discount - $insurance);
 
-        $html = view('pdf.portal-invoice', [
-            'archive'             => $archive,
-            'patientName'         => $patientName,
-            'patientNationalCode' => $archive->national_code ?? ($formData['patient']['national_code'] ?? '—'),
-            'patientMobile'       => $archive->mobile ?? ($formData['patient']['mobile'] ?? '—'),
-            'createdAt'           => $createdAt,
-            'invoice'             => [
-                'rows' => $rows
-            ],
-            'totalAmount'         => $totalAmount,
-            'discount'            => $discount,
-            'payableAmount'       => $payableAmount,
-            'uniqueDoctors'       => array_values($uniqueDoctors),
-        ])->render();
+        $paymentLabels = ['cash' => 'نقدی', 'card' => 'کارتخوان', 'pos' => 'کارتخوان', 'online' => 'آنلاین', 'transfer' => 'کارت به کارت'];
+        $pm = $invoiceDetails['paymentMethod'] ?? null;
+
+        $invoice = [
+            'file_number'     => $archive->file_number ?: str_pad((string) $archive->id, 8, '0', STR_PAD_LEFT),
+            'invoice_number'  => $invoiceDetails['invoiceNumber'] ?? ('INV-' . $archive->id),
+            'tracking_code'   => Str::limit($token, 12, '...'),
+            'issued_at'       => $this->toPersianDate($invoiceDetails['created_at'] ?? $archive->issued_at ?? $archive->created_at ?? now()),
+            'total_amount'    => $calcTotal,
+            'discount'        => $discount,
+            'insurance_share' => $insurance,
+            'payable_amount'  => $payable,
+            'payment_method'  => $pm ? ($paymentLabels[$pm] ?? $pm) : null,
+        ];
+
+        $logo = $this->resolveImageUrl('images/logo.png');
+
+        $certServices = collect($serviceList)->pluck('serviceTitle')->filter()->unique()->implode('، ');
+        if ($certServices === '') {
+            $certServices = collect($rows)->pluck('service_name')->filter()->unique()->implode('، ');
+        }
+
+        $cert = [
+            'title'         => $genderTitle,
+            'name'          => $patient['name'],
+            'national_code' => $patient['national_code'],
+            'date'          => substr($this->toPersianDate($data['submittedAt'] ?? $archive->issued_at ?? $archive->created_at ?? now()), 0, 10),
+            'services'      => $certServices,
+        ];
+
+        $viewData = compact('rows', 'invoice', 'patient', 'visitDoctors', 'doctorPrescriptionText', 'logo', 'cert');
+
+        // حالت دیباگ: نمایش HTML در مرورگر
+        if ($request->boolean('html')) {
+            return view('pdf.portal-invoice', $viewData);
+        }
+
+        // ۶. ساخت PDF با mPDF
+        $html = view('pdf.portal-invoice', $viewData)->render();
+
+        $tempDir = storage_path('app/mpdf');
+        File::ensureDirectoryExists($tempDir);
 
         $mpdf = new Mpdf([
             'mode'          => 'utf-8',
             'format'        => 'A4',
-            'margin_top'    => 10,
-            'margin_bottom' => 10,
-            'margin_left'   => 10,
-            'margin_right'  => 10,
             'default_font'  => 'dejavusans',
+            'margin_top'    => 10,
+            'margin_bottom' => 32,
+            'margin_footer' => 8,
+            'margin_left'   => 12,
+            'margin_right'  => 12,
+            'tempDir'       => $tempDir,
+            'autoScriptToLang'     => false,
+            'autoLangToFont'       => false,
+            'shrink_tables_to_fit' => 0,
         ]);
-
-        $mpdf->autoScriptToLang = true;
-        $mpdf->autoLangToFont   = true;
         $mpdf->SetDirectionality('rtl');
-
         $mpdf->WriteHTML($html);
 
-        $fileName = 'invoice-' . ($archive->national_code ?? $archive->id) . '.pdf';
+        $pdfContent = $mpdf->Output('invoice.pdf', Destination::STRING_RETURN);
 
-        return response(
-            $mpdf->Output($fileName, Destination::INLINE),
-            200,
-            [
-                'Content-Type'        => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
-            ]
-        );
+        return response($pdfContent, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="invoice-' . $archive->id . '.pdf"',
+            'Cache-Control'       => 'no-store, no-cache, must-revalidate',
+        ]);
     }
+
 
     private function resolveImageUrl(?string $path): ?string
     {

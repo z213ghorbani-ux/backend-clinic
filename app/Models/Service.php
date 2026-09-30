@@ -4,33 +4,43 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Concerns\HasAuditLogs;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-
-
 
 class Service extends Model
 {
     use HasFactory;
-    use HasAuditLogs;
-
 
     protected $fillable = [
+        'parent_id',
         'name',
+        'code',
         'price',
-        'duration_minutes',
-        'description',
         'is_active',
+        'is_visit',
+        'sort_order',
     ];
 
     protected $casts = [
-        'price' => 'integer',
-        'duration_minutes' => 'integer',
         'is_active' => 'boolean',
+        'is_visit'  => 'boolean',
+        'price'     => 'integer',
+        'sort_order' => 'integer',
     ];
 
-    public function appointments(): HasMany
+    // رابطه با والد
+    public function parent()
     {
-        return $this->hasMany(Appointment::class);
+        return $this->belongsTo(Service::class, 'parent_id');
+    }
+
+    // رابطه با زیرمجموعه‌ها
+    public function children()
+    {
+        return $this->hasMany(Service::class, 'parent_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    // گرفتن فقط ریشه‌ها همراه زیرخدمات
+    public function scopeRootsWithChildren($query)
+    {
+        return $query->whereNull('parent_id')->with('children');
     }
 }

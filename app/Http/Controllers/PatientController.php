@@ -4,29 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Models\Patient;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PatientController extends Controller
 {
-    /**
-     * لیست بیماران با قابلیت صفحه‌بندی و جستجوی سریع
-     */
     public function index(Request $request)
     {
         $query = Patient::query();
 
-        // جستجوی سریع روی نام، کد ملی، شماره پرونده یا موبایل
         if ($request->filled('search')) {
-            $search = trim($request->search);
-            $query->where(function ($q) use ($search) {
-                $q->where('full_name', 'like', "%{$search}%")
-                    ->orWhere('national_code', 'like', "{$search}%")
-                    ->orWhere('file_number', 'like', "{$search}%")
-                    ->orWhere('mobile', 'like', "%{$search}%");
+            $s = $request->input('search');
+            $query->where(function ($q) use ($s) {
+                $q->where('full_name', 'like', "%{$s}%")
+                    ->orWhere('national_code', 'like', "%{$s}%")
+                    ->orWhere('file_number', 'like', "%{$s}%")
+                    ->orWhere('mobile', 'like', "%{$s}%");
             });
         }
 
-        // صفحه‌بندی ۲۰تایی برای سرعت بالا
-        $patients = $query->latest('id')->paginate(20);
+        // مرتب‌سازی بر اساس جدیدترین‌ها
+        $patients = $query->latest()->paginate(15);
 
         return response()->json([
             'status' => 'success',
@@ -34,75 +31,79 @@ class PatientController extends Controller
         ]);
     }
 
-    /**
-     * ثبت بیمار جدید
-     */
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'file_number' => 'nullable|string|max:50',
-            'national_code' => 'nullable|string|max:10',
-            'full_name' => 'required|string|max:150',
-            'mobile' => 'required|string|max:15',
-            'gender' => 'nullable|in:male,female,other',
-            'birth_date' => 'nullable|string|max:20',
-            'notes' => 'nullable|string',
+            'full_name'     => 'required|string|max:255',
+            'file_number'   => 'required|string|max:50|unique:patients,file_number',
+            'national_code' => 'required|string|size:10|unique:patients,national_code',
+            'mobile'        => 'nullable|string|regex:/^09\d{9}$/',
+            'address'       => 'nullable|string|max:500',
+        ], [
+            'full_name.required'     => 'نام و نام خانوادگی الزامی است.',
+            'file_number.required'   => 'شماره پرونده الزامی است.',
+            'file_number.unique'     => 'این شماره پرونده قبلاً ثبت شده است.',
+            'national_code.required' => 'کد ملی الزامی است.',
+            'national_code.size'     => 'کد ملی باید دقیقاً ۱۰ رقم باشد.',
+            'national_code.unique'   => 'این کد ملی قبلاً ثبت شده است.',
+            'mobile.regex'           => 'شماره موبایل وارد شده معتبر نیست (مثال: 09121234567).',
         ]);
 
         $patient = Patient::create($validated);
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'پرونده بیمار با موفقیت ایجاد شد.',
-            'data' => $patient
+            'status'  => 'success',
+            'message' => 'بیمار با موفقیت ثبت شد.',
+            'data'    => $patient
         ], 201);
     }
 
-    /**
-     * نمایش مشخصات یک بیمار
-     */
-    public function show(Patient $patient)
+    public function show($id)
     {
+        $patient = Patient::findOrFail($id);
         return response()->json([
             'status' => 'success',
             'data' => $patient
         ]);
     }
 
-    /**
-     * ویرایش اطلاعات بیمار
-     */
-    public function update(Request $request, Patient $patient)
+    public function update(Request $request, $id)
     {
+        $patient = Patient::findOrFail($id);
+
         $validated = $request->validate([
-            'file_number' => 'nullable|string|max:50',
-            'national_code' => 'nullable|string|max:10',
-            'full_name' => 'sometimes|required|string|max:150',
-            'mobile' => 'sometimes|required|string|max:15',
-            'gender' => 'nullable|in:male,female,other',
-            'birth_date' => 'nullable|string|max:20',
-            'notes' => 'nullable|string',
+            'full_name'     => 'required|string|max:255',
+            'file_number'   => ['required', 'string', 'max:50', Rule::unique('patients')->ignore($patient->id)],
+            'national_code' => ['required', 'string', 'size:10', Rule::unique('patients')->ignore($patient->id)],
+            'mobile'        => 'nullable|string|regex:/^09\d{9}$/',
+            'address'       => 'nullable|string|max:500',
+        ], [
+            'full_name.required'     => 'نام و نام خانوادگی الزامی است.',
+            'file_number.required'   => 'شماره پرونده الزامی است.',
+            'file_number.unique'     => 'این شماره پرونده متعلق به بیمار دیگری است.',
+            'national_code.required' => 'کد ملی الزامی است.',
+            'national_code.size'     => 'کد ملی باید ۱۰ رقم باشد.',
+            'national_code.unique'   => 'این کد ملی متعلق به بیمار دیگری است.',
+            'mobile.regex'           => 'شماره موبایل نامعتبر است.',
         ]);
 
         $patient->update($validated);
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'message' => 'اطلاعات بیمار به‌روزرسانی شد.',
-            'data' => $patient
+            'data'    => $patient
         ]);
     }
 
-    /**
-     * حذف پرونده بیمار
-     */
-    public function destroy(Patient $patient)
+    public function destroy($id)
     {
+        $patient = Patient::findOrFail($id);
         $patient->delete();
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'پرونده بیمار با موفقیت حذف شد.'
+            'status'  => 'success',
+            'message' => 'بیمار با موفقیت حذف شد.'
         ]);
     }
 }

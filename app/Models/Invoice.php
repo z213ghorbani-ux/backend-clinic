@@ -7,18 +7,22 @@ use Illuminate\Database\Eloquent\Model;
 class Invoice extends Model
 {
     protected $fillable = [
-        'patient_id',
         'appointment_id',
-        'total_amount',
+        'patient_id',
+        'amount',
         'discount',
         'final_amount',
         'status',
+        'payment_method',
+        'paid_at',
+        'notes',
     ];
 
     protected $casts = [
-        'total_amount' => 'decimal:2',
-        'discount' => 'decimal:2',
-        'final_amount' => 'decimal:2',
+        'amount'       => 'integer',
+        'discount'     => 'integer',
+        'final_amount' => 'integer',
+        'paid_at'      => 'datetime',
     ];
 
     public function patient()
