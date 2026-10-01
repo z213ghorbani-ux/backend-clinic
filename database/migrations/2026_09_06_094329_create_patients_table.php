@@ -13,10 +13,11 @@ return new class extends Migration
     {
         Schema::create('patients', function (Blueprint $table) {
             $table->id();
-            $table->string('first_name');
-            $table->string('last_name');
-            $table->string('file_number', 50)->unique();
-            $table->string('national_id')->unique()->nullable();
+            $table->string('full_name'); // اضافه شدن نام کامل
+            $table->string('first_name')->nullable(); // نالبل کردن برای جلوگیری از ارور
+            $table->string('last_name')->nullable();  // نالبل کردن برای جلوگیری از ارور
+            $table->string('file_number', 50)->unique()->nullable();
+            $table->string('national_code')->unique()->nullable();
             $table->string('mobile')->nullable();
             $table->string('phone')->nullable();
             $table->date('birth_date')->nullable();
