@@ -503,19 +503,97 @@ class ArchiveController extends Controller
     {
         $model = $archive instanceof Archive ? $archive : Archive::findOrFail($archive);
 
-        $paths = is_array($model->attachments)
+        $attachments = is_array($model->attachments)
             ? $model->attachments
             : json_decode($model->attachments ?? '[]', true);
 
-        $target = $paths[$index] ?? null;
-        $path = is_array($target) ? ($target['path'] ?? null) : $target;
-
-        if (!$path || !Storage::disk('public')->exists($path)) {
-            return response()->json(['message' => 'فایل یافت نشد.'], 404);
+        if (empty($attachments)) {
+            $formData = is_array($model->form_data)
+                ? $model->form_data
+                : json_decode($model->form_data ?? '{}', true);
+            $attachments = $formData['attachments'] ?? $formData['files'] ?? [];
         }
 
-        return Storage::disk('public')->download($path);
+        if (!isset($attachments[$index])) {
+            return response()->json(['message' => 'پیوست مورد نظر یافت نشد.'], 404);
+        }
+
+        $target = $attachments[$index];
+        $rawPath = is_array($target) ? ($target['path'] ?? $target['url'] ?? null) : $target;
+        $originalName = is_array($target) ? ($target['original_name'] ?? 'attachment.pdf') : 'attachment.pdf';
+        $natCode = trim((string)($model->national_code ?? ''));
+
+        $filePath = null;
+
+        // ۱. جستجوی پوشه‌ای بر اساس کد ملی پرونده
+        if ($natCode !== '') {
+            $folderCandidates = [
+                storage_path('app/public/archives/' . $natCode),
+                storage_path('app/archives/' . $natCode),
+                storage_path('app/public/attachments/' . $natCode),
+                storage_path('app/attachments/' . $natCode),
+                public_path('storage/archives/' . $natCode),
+                public_path('storage/attachments/' . $natCode),
+            ];
+
+            foreach ($folderCandidates as $dir) {
+                if (is_dir($dir)) {
+                    $scannedFiles = array_values(array_filter(glob($dir . '/*'), function ($f) {
+                        return is_file($f) && filesize($f) > 0;
+                    }));
+
+                    if (!empty($scannedFiles)) {
+                        if (!empty($rawPath)) {
+                            foreach ($scannedFiles as $sf) {
+                                if (str_contains(basename($sf), basename($rawPath))) {
+                                    $filePath = $sf;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!$filePath && isset($scannedFiles[$index])) {
+                            $filePath = $scannedFiles[$index];
+                        }
+                    }
+                }
+                if ($filePath) {
+                    break;
+                }
+            }
+        }
+
+        // ۲. جستجوی مستقیم بر اساس مسیر ذخیره شده در دیتابیس
+        if (!$filePath && !empty($rawPath)) {
+            $cleanRaw = ltrim(str_replace(['/storage/', 'storage/', 'public/'], '', $rawPath), '/\\');
+            $possiblePaths = [
+                storage_path('app/public/' . $cleanRaw),
+                storage_path('app/' . $cleanRaw),
+                public_path('storage/' . $cleanRaw),
+                public_path($cleanRaw),
+            ];
+
+            foreach ($possiblePaths as $p) {
+                if (file_exists($p) && is_file($p) && filesize($p) > 0) {
+                    $filePath = $p;
+                    break;
+                }
+            }
+        }
+
+        // ۳. بررسی نهایی وجود فایل
+        if (!$filePath || !file_exists($filePath) || filesize($filePath) === 0) {
+            Log::error("Archive attachment not found. Archive ID: {$model->id}, Index: {$index}, RawPath: {$rawPath}");
+            return response()->json(['message' => 'فایل فیزیکی روی سرور یافت نشد.'], 404);
+        }
+
+        // پاکسازی بافر خروجی برای جلوگیری از خراب شدن فایل باینری/PDF
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+
+        return response()->download($filePath, $originalName);
     }
+
 
     // =========================================================================
     // ۳. متدهای پرتال مراجعین (Patient Portal)
