@@ -133,23 +133,23 @@ class SignatureStampService
      */
     private function resolveStampFullPath(string $path): ?string
     {
+        // پاکسازی مسیر
         $clean = ltrim(str_replace(['/storage/', 'storage/', 'public/'], '', $path), '/\\');
 
         $candidates = [
-            Storage::disk('public')->path($clean),
-            Storage::disk('public')->path($path),
+            storage_path('app/public/' . $clean), // مسیر استاندارد در لاراول داکر/سرور
             public_path('storage/' . $clean),
-            public_path($clean),
-            storage_path('app/public/' . $clean),
             storage_path('app/' . $clean),
         ];
 
         foreach ($candidates as $candidate) {
             if (file_exists($candidate) && is_file($candidate)) {
+                Log::info("Stamp found at: " . $candidate); // برای دیباگ خودت
                 return $candidate;
             }
         }
 
+        Log::error("Stamp NOT FOUND for path: " . $path);
         return null;
     }
 }

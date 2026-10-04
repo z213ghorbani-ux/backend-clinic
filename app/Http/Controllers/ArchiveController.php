@@ -966,24 +966,29 @@ class ArchiveController extends Controller
             return view('pdf.portal-invoice', $viewData);
         }
 
-        // ۶. ساخت PDF با mPDF
+        // ۶. تنظیم محدودیت‌های حافظه و پردازش عبارات منظم قبل از پردازش PDF
+        ini_set('pcre.backtrack_limit', '50000000');
+        ini_set('pcre.recursion_limit', '20000000');
+        ini_set('memory_limit', '512M');
+
+        // ۷. ساخت PDF با mPDF
         $html = view('pdf.portal-invoice', $viewData)->render();
 
         $tempDir = storage_path('app/mpdf');
         File::ensureDirectoryExists($tempDir);
 
         $mpdf = new Mpdf([
-            'mode'          => 'utf-8',
-            'format'        => 'A4',
-            'default_font'  => 'dejavusans',
-            'margin_top'    => 10,
-            'margin_bottom' => 32,
-            'margin_footer' => 8,
-            'margin_left'   => 12,
-            'margin_right'  => 12,
-            'tempDir'       => $tempDir,
-            'autoScriptToLang'     => false,
-            'autoLangToFont'       => false,
+            'mode'                 => 'utf-8',
+            'format'               => 'A4',
+            'default_font'         => 'dejavusans',
+            'margin_top'           => 10,
+            'margin_bottom'        => 32,
+            'margin_footer'        => 8,
+            'margin_left'          => 12,
+            'margin_right'         => 12,
+            'tempDir'              => $tempDir,
+            'autoScriptToLang'     => true,
+            'autoLangToFont'       => true,
             'shrink_tables_to_fit' => 0,
         ]);
         $mpdf->SetDirectionality('rtl');
