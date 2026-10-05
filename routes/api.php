@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
+use App\Models\Doctor;
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DoctorController;
@@ -65,6 +67,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/doctors', [DoctorController::class, 'index']);
     Route::get('/doctors/{doctor}', [DoctorController::class, 'show']);
+
+    // روت اختصاصی دریافت تصویر مهر پزشک از استوریج با احراز هویت
+    Route::get('/doctors/{doctor}/stamp', function (Doctor $doctor) {
+        $rawPath = (string) ($doctor->stamp_path ?? '');
+        $path = ltrim(preg_replace('#^/?storage/#', '', $rawPath), '/');
+
+        abort_unless($path && Storage::disk('public')->exists($path), 404);
+
+        return Storage::disk('public')->response($path);
+    });
 
     /*
     |--------------------------------------------------------------------------
