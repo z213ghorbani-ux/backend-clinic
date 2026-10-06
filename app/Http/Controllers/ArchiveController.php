@@ -1016,7 +1016,12 @@ class ArchiveController extends Controller
             'payment_method'  => $pm ? ($paymentLabels[$pm] ?? $pm) : null,
         ];
 
-        $logo = $this->resolveImageUrl('images/logo.png');
+        // یافتن لوگو (با بررسی نام‌های مختلف)
+        $logo = $this->resolveImageUrl('images/logo.png')
+            ?? $this->resolveImageUrl('images/logo.jpg')
+            ?? $this->resolveImageUrl('images/logo.jpeg')
+            ?? $this->resolveImageUrl('logo.png')
+            ?? $this->resolveImageUrl('logo.jpg');
 
         $certServices = collect($serviceList)->pluck('serviceTitle')->filter()->unique()->implode('، ');
         if ($certServices === '') {
@@ -1095,11 +1100,19 @@ class ArchiveController extends Controller
 
         $cleanPath = ltrim(str_replace(['/storage/', 'storage/', 'public/'], '', $path), '/\\');
 
+        // جلوگیری از پیمایش مسیر (Path Traversal) مثل ../../.env
+        if ($cleanPath === '' || preg_match('#(^|[/\\\\])\.\.([/\\\\]|$)#', $cleanPath)) {
+            return null;
+        }
+
         $candidates = array_unique([
             storage_path('app/public/' . $cleanPath),
             storage_path('app/' . $cleanPath),
             public_path('storage/' . $cleanPath),
             public_path($cleanPath),
+            base_path('public/' . $cleanPath),
+            storage_path('app/public/images/' . basename($cleanPath)),
+            public_path('images/' . basename($cleanPath)),
             storage_path('app/public/stamps/' . basename($cleanPath)),
             storage_path('app/stamps/' . basename($cleanPath)),
             public_path('storage/stamps/' . basename($cleanPath)),
@@ -1108,11 +1121,14 @@ class ArchiveController extends Controller
 
         foreach ($candidates as $candidate) {
             if (is_string($candidate) && file_exists($candidate) && is_file($candidate) && filesize($candidate) > 0) {
-                $mime = mime_content_type($candidate);
-
-                if (!$mime || !str_starts_with($mime, 'image/')) {
-                    continue;
-                }
+                $ext = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
+                $mime = match ($ext) {
+                    'png'  => 'image/png',
+                    'jpg', 'jpeg' => 'image/jpeg',
+                    'webp' => 'image/webp',
+                    'gif'  => 'image/gif',
+                    default => @mime_content_type($candidate) ?: 'image/png',
+                };
 
                 $data = base64_encode(file_get_contents($candidate));
                 return "data:{$mime};base64,{$data}";
@@ -1121,6 +1137,7 @@ class ArchiveController extends Controller
 
         return null;
     }
+
 
     private function toPersianDate($date): string
     {
