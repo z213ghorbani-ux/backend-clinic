@@ -48,7 +48,8 @@ Route::get('/portal/{token}/attachments/{index}', [
 Route::get('/invoices/{invoice}/official-pdf', [
     InvoiceController::class,
     'officialPdf'
-])->middleware('signed')->name('invoices.official-pdf');
+])->name('invoices.official-pdf');
+
 
 /*
 |--------------------------------------------------------------------------
