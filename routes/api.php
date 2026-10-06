@@ -2,7 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use App\Models\Doctor;
+use App\Models\Invoice;
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DoctorController;
@@ -40,6 +42,13 @@ Route::get('/portal/{token}/attachments/{index}', [
     ArchiveController::class,
     'portalDownloadAttachment'
 ])->whereNumber('index');
+
+// دانلود مستقیم فاکتور رسمی (بدون هدر توکن) - فقط با لینک امضاشده و موقت
+// لینک از روت احراز هویت‌شده‌ی /invoices/{invoice}/pdf-link تولید می‌شود
+Route::get('/invoices/{invoice}/official-pdf', [
+    InvoiceController::class,
+    'officialPdf'
+])->middleware('signed')->name('invoices.official-pdf');
 
 /*
 |--------------------------------------------------------------------------
@@ -212,7 +221,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     | Invoices & Visits
     |--------------------------------------------------------------------------
-    | استعلام وضعیت، مشاهده و دریافت PDF برای همه کاربران لاگین‌شده
+    | استعلام وضعیت، مشاهده و دریافت لینک PDF برای همه کاربران لاگین‌شده
     | ایجاد، ویرایش، حذف و تسویه برای ادمین و منشی سطح یک
     |--------------------------------------------------------------------------
     */
@@ -233,11 +242,16 @@ Route::middleware('auth:sanctum')->group(function () {
         'show'
     ]);
 
-    // صدور خروجی PDF فاکتور رسمی
-    Route::get('/invoices/{invoice}/official-pdf', [
-        InvoiceController::class,
-        'officialPdf'
-    ]);
+    // تولید لینک امضاشده و موقت (۵ دقیقه) برای دانلود/پرینت PDF فاکتور رسمی
+    Route::get('/invoices/{invoice}/pdf-link', function (Invoice $invoice) {
+        return response()->json([
+            'url' => URL::temporarySignedRoute(
+                'invoices.official-pdf',
+                now()->addMinutes(5),
+                ['invoice' => $invoice->id]
+            ),
+        ]);
+    });
 
     Route::middleware('role:admin,staff_level_1')->group(function () {
 

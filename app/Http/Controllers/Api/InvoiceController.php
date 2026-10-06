@@ -161,6 +161,9 @@ class InvoiceController extends Controller
     /**
      * خروجی PDF رسمی فاکتور
      */
+    /**
+     * خروجی PDF رسمی فاکتور
+     */
     public function officialPdf(Invoice $invoice)
     {
         $invoice->load(['appointment.doctor', 'appointment.service', 'patient']);
@@ -169,6 +172,13 @@ class InvoiceController extends Controller
         $appointment = $invoice->appointment;
         $doctor = $appointment?->doctor;
         $service = $appointment?->service;
+
+        // آماده‌سازی لوگوی مرکز به صورت Base64
+        $logoPath = public_path('images/logo.png');
+        $logoBase64 = '';
+        if (file_exists($logoPath)) {
+            $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
         // آماده‌سازی مهر پزشک به صورت Base64 محلی برای جلوگیری از خطای ۴۰۳
         $stampBase64 = null;
@@ -217,6 +227,7 @@ class InvoiceController extends Controller
             'discount'             => $invoice->discount,
             'payableAmount'        => $invoice->final_amount,
             'uniqueDoctors'        => $uniqueDoctors,
+            'logoBase64'           => $logoBase64, // 🟢 ارسال لوگو به ویو
         ];
 
         // بارگذاری قالب رسمی
@@ -226,6 +237,7 @@ class InvoiceController extends Controller
 
         return $pdf->stream("invoice-{$invoice->id}.pdf");
     }
+
 
     /**
      * بررسی وضعیت ویزیت یا فاکتور باز بیمار
