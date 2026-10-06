@@ -163,13 +163,20 @@ class InvoiceController extends Controller
      */
     public function officialPdf(Request $request, $id)
     {
-        // ۱. ابتدا جستجو بر اساس ID جدول invoices، و در غیر این صورت جستجو بر اساس archive_id یا جدول archives
+        // ۱. ابتدا جستجو بر اساس شناسه خود فاکتور
         $invoice = \App\Models\Invoice::with(['archive.patient', 'archive.doctor', 'items'])
-            ->where('id', $id)
-            ->orWhere('archive_id', $id)
-            ->first();
+            ->find($id);
 
-        // ۲. اگر هنوز فاکتوری ساخته نشده بود ولی آرشیو وجود داشت
+        // اگر پیدا نشد، ممکن است $id مربوط به رکورد آرشیو باشد
+        if (!$invoice) {
+            $invoice = \App\Models\Invoice::with(['archive.patient', 'archive.doctor', 'items'])
+                ->whereHas('archive', function ($q) use ($id) {
+                    $q->where('id', $id);
+                })
+                ->first();
+        }
+
+        // ۲. پیدا کردن آرشیو مرتبط یا مستقیماً از روی شناسه
         $archive = null;
         if ($invoice && $invoice->archive) {
             $archive = $invoice->archive;
@@ -183,7 +190,7 @@ class InvoiceController extends Controller
             ], 404);
         }
 
-        // ۳. تبدیل لوگو به Base64 طبق استاندارد تعریف‌شده
+        // ۳. تبدیل لوگو به Base64 طبق استاندارد
         $logoPath = public_path('images/logo.png');
         $logoBase64 = '';
         if (file_exists($logoPath)) {
@@ -200,6 +207,7 @@ class InvoiceController extends Controller
 
         return $pdf->stream("invoice-{$id}.pdf");
     }
+
 
 
     /**
