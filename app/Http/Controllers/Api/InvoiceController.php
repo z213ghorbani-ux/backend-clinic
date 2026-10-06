@@ -161,81 +161,44 @@ class InvoiceController extends Controller
     /**
      * خروجی PDF رسمی فاکتور
      */
-    /**
-     * خروجی PDF رسمی فاکتور
-     */
-    public function officialPdf(Invoice $invoice)
+    public function officialPdf(Request $request, $id)
     {
-        $invoice->load(['appointment.doctor', 'appointment.service', 'patient']);
+        // ۱. ابتدا جستجو بر اساس ID جدول invoices، و در غیر این صورت جستجو بر اساس archive_id یا جدول archives
+        $invoice = \App\Models\Invoice::with(['archive.patient', 'archive.doctor', 'items'])
+            ->where('id', $id)
+            ->orWhere('archive_id', $id)
+            ->first();
 
-        $patient = $invoice->patient;
-        $appointment = $invoice->appointment;
-        $doctor = $appointment?->doctor;
-        $service = $appointment?->service;
+        // ۲. اگر هنوز فاکتوری ساخته نشده بود ولی آرشیو وجود داشت
+        $archive = null;
+        if ($invoice && $invoice->archive) {
+            $archive = $invoice->archive;
+        } else {
+            $archive = \App\Models\Archive::with(['patient', 'doctor'])->find($id);
+        }
 
-        // آماده‌سازی لوگوی مرکز به صورت Base64
+        if (!$invoice && !$archive) {
+            return response()->json([
+                'message' => "هیچ فاکتور یا رکوردی با شناسه {$id} یافت نشد."
+            ], 404);
+        }
+
+        // ۳. تبدیل لوگو به Base64 طبق استاندارد تعریف‌شده
         $logoPath = public_path('images/logo.png');
         $logoBase64 = '';
         if (file_exists($logoPath)) {
             $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
         }
 
-        // آماده‌سازی مهر پزشک به صورت Base64 محلی برای جلوگیری از خطای ۴۰۳
-        $stampBase64 = null;
-        if ($doctor && !empty($doctor->stamp_path)) {
-            $stampFullPath = storage_path('app/public/' . ltrim($doctor->stamp_path, '/'));
-            if (!file_exists($stampFullPath)) {
-                $stampFullPath = public_path('storage/' . ltrim($doctor->stamp_path, '/'));
-            }
+        // ۴. ارسال داده‌ها به View و تولید PDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.portal-invoice', [
+            'invoice'    => $invoice,
+            'archive'    => $archive,
+            'patient'    => $invoice?->archive?->patient ?? $archive?->patient,
+            'logoBase64' => $logoBase64,
+        ]);
 
-            if (file_exists($stampFullPath)) {
-                $ext = pathinfo($stampFullPath, PATHINFO_EXTENSION);
-                $stampBase64 = 'data:image/' . ($ext === 'jpg' ? 'jpeg' : $ext) . ';base64,' . base64_encode(file_get_contents($stampFullPath));
-            }
-        }
-
-        $rows = [];
-        if ($service) {
-            $rows[] = [
-                'code'   => $service->id ?? '—',
-                'title'  => $service->name ?? 'خدمت پزشکی',
-                'doctor' => $doctor ? ($doctor->first_name . ' ' . $doctor->last_name) : '—',
-                'amount' => $invoice->amount,
-            ];
-        }
-
-        $uniqueDoctors = [];
-        if ($doctor) {
-            $uniqueDoctors[] = [
-                'name'      => 'دکتر ' . $doctor->first_name . ' ' . $doctor->last_name,
-                'specialty' => $doctor->specialty ?? 'متخصص قلب و عروق',
-                'stamp_url' => $stampBase64,
-            ];
-        }
-
-        $data = [
-            'archive'              => (object)[
-                'file_number'    => $invoice->id,
-                'tracking_token' => $invoice->id . '-' . ($appointment?->id ?? '0'),
-            ],
-            'createdAt'            => $invoice->created_at ? $invoice->created_at->format('Y/m/d') : now()->format('Y/m/d'),
-            'patientName'          => $patient ? ($patient->first_name . ' ' . $patient->last_name) : '—',
-            'patientNationalCode'  => $patient->national_code ?? '—',
-            'patientMobile'        => $patient->mobile ?? '—',
-            'invoice'              => ['rows' => $rows],
-            'totalAmount'          => $invoice->amount,
-            'discount'             => $invoice->discount,
-            'payableAmount'        => $invoice->final_amount,
-            'uniqueDoctors'        => $uniqueDoctors,
-            'logoBase64'           => $logoBase64, // 🟢 ارسال لوگو به ویو
-        ];
-
-        // بارگذاری قالب رسمی
-        $pdf = Pdf::loadView('pdf.portal-invoice', $data)
-            ->setPaper('a4', 'portrait')
-            ->setOption(['isHtml5ParserEnabled' => true, 'isRemoteEnabled' => true]);
-
-        return $pdf->stream("invoice-{$invoice->id}.pdf");
+        return $pdf->stream("invoice-{$id}.pdf");
     }
 
 
