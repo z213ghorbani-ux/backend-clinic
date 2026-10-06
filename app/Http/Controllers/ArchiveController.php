@@ -1119,6 +1119,9 @@ class ArchiveController extends Controller
             public_path('stamps/' . basename($cleanPath)),
         ]);
 
+        \Log::info('logo candidates', array_map(fn($p) => ['path' => $p, 'exists' => file_exists($p)], $candidates));
+
+
         foreach ($candidates as $candidate) {
             if (is_string($candidate) && file_exists($candidate) && is_file($candidate) && filesize($candidate) > 0) {
                 $ext = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
