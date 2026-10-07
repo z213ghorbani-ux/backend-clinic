@@ -188,7 +188,7 @@
             <tr>
                 <td style="width: 60%; text-align: right;">
                     <strong>تهران، خیابان ولیعصر، خیابان توانیر، بالاتر از بیمارستان دی، ساختمان شماره ۵</strong><br>
-                    تلفن: ۰۲۱ ۸۸۸۸۷۲۷۰
+                    تلفن: {{ fa_num('021 88887270') }}
                 </td>
                 <td style="width: 40%; text-align: left; direction: ltr;">
                     <strong style="color: #0f766e; font-size: 12px;">www.TehranEP.center</strong><br>
@@ -214,27 +214,26 @@
                 <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
             </td>
             <td class="meta" style="width: 30%;">
-                <div><strong>شماره پرونده / فاکتور:</strong> #{{ $invoice['file_number'] }}</div>
-                <div><strong>کد رهگیری:</strong> {{ $invoice['tracking_code'] }}</div>
-                <div><strong>تاریخ صدور:</strong> {{ $invoice['issued_at'] }}</div>
+                <div><strong>شماره پرونده / فاکتور:</strong> #{{ fa_num($invoice['file_number']) }}</div>
+                <div><strong>کد رهگیری:</strong> {{ fa_num($invoice['tracking_code']) }}</div>
+                <div><strong>تاریخ صدور:</strong> {{ fa_num($invoice['issued_at']) }}</div>
             </td>
         </tr>
     </table>
 
-
     <table class="patient-bar">
         <tr>
             <td><strong>بیمار:</strong> {{ $patient['name'] }}</td>
-            <td><strong>کد ملی:</strong> {{ $patient['national_code'] }}</td>
-            <td><strong>شماره موبایل:</strong> {{ $patient['phone'] }}</td>
+            <td><strong>کد ملی:</strong> {{ fa_num($patient['national_code']) }}</td>
+            <td><strong>شماره موبایل:</strong> {{ fa_num($patient['phone']) }}</td>
         </tr>
     </table>
 
     <div class="cert-box">
         <div class="cert-text">
             {{ $cert['title'] }} <strong>{{ $cert['name'] }}</strong>
-            با کد ملی <strong>{{ $cert['national_code'] }}</strong>
-            در تاریخ <strong>{{ $cert['date'] }}</strong>
+            با کد ملی <strong>{{ fa_num($cert['national_code']) }}</strong>
+            در تاریخ <strong>{{ fa_num($cert['date']) }}</strong>
             به مرکز آریتمی تهران مراجعه نموده و خدمات
             <strong>{{ $cert['services'] }}</strong>
             برای ایشان ثبت و انجام شده است.
@@ -275,13 +274,13 @@
             <td>
                 <div class="items-title">صورتحساب درمانی</div>
                 <div style="font-size: 10.5px; color: #4a5568;">
-                    بیمار: <strong>{{ $patient['name'] }}</strong> &nbsp;|&nbsp; کد ملی: {{ $patient['national_code'] }}
+                    بیمار: <strong>{{ $patient['name'] }}</strong> &nbsp;|&nbsp; کد ملی: {{ fa_num($patient['national_code']) }}
                 </div>
             </td>
             <td class="meta" style="width: 32%;">
-                <div><strong>شماره پرونده / فاکتور:</strong> #{{ $invoice['file_number'] }}</div>
-                <div><strong>شماره فاکتور:</strong> {{ $invoice['invoice_number'] }}</div>
-                <div><strong>تاریخ صدور:</strong> {{ $invoice['issued_at'] }}</div>
+                <div><strong>شماره پرونده / فاکتور:</strong> #{{ fa_num($invoice['file_number']) }}</div>
+                <div><strong>شماره فاکتور:</strong> {{ fa_num($invoice['invoice_number']) }}</div>
+                <div><strong>تاریخ صدور:</strong> {{ fa_num($invoice['issued_at']) }}</div>
             </td>
         </tr>
     </table>
@@ -299,8 +298,8 @@
         <tbody>
             @forelse($rows as $index => $row)
             <tr>
-                <td>{{ $index + 1 }}</td>
-                <td>{{ $row['code'] }}</td>
+                <td>{{ fa_num($index + 1) }}</td>
+                <td>{{ fa_num($row['code']) }}</td>
                 <td style="text-align: right;">
                     @if(!empty($row['parent_name']))
                     <div style="font-size: 8.5px; color: #718096;">{{ $row['parent_name'] }}</div>
@@ -308,7 +307,7 @@
                     <strong>{{ $row['service_name'] }}</strong>
                 </td>
                 <td>{{ $row['doctor_name'] ?? '---' }}</td>
-                <td>{{ number_format($row['amount']) }}</td>
+                <td>{{ fa_num($row['amount'], true) }}</td>
             </tr>
             @empty
             <tr>
@@ -325,23 +324,23 @@
                 <table class="sum-table">
                     <tr>
                         <td style="color: #4a5568;">مجموع خدمات:</td>
-                        <td style="text-align: left;"><strong>{{ number_format($invoice['total_amount']) }}</strong> تومان</td>
+                        <td style="text-align: left;"><strong>{{ fa_num($invoice['total_amount'], true) }}</strong> تومان</td>
                     </tr>
                     @if(($invoice['discount'] ?? 0) > 0)
                     <tr>
                         <td style="color: #e53e3e;">تخفیف:</td>
-                        <td style="text-align: left; color: #e53e3e;">{{ number_format($invoice['discount']) }} تومان</td>
+                        <td style="text-align: left; color: #e53e3e;">{{ fa_num($invoice['discount'], true) }} تومان</td>
                     </tr>
                     @endif
                     @if(($invoice['insurance_share'] ?? 0) > 0)
                     <tr>
                         <td style="color: #2b6cb0;">سهم بیمه:</td>
-                        <td style="text-align: left; color: #2b6cb0;">{{ number_format($invoice['insurance_share']) }} تومان</td>
+                        <td style="text-align: left; color: #2b6cb0;">{{ fa_num($invoice['insurance_share'], true) }} تومان</td>
                     </tr>
                     @endif
                     <tr>
                         <td style="color: #4a5568;">مبلغ نهایی پرداختی:</td>
-                        <td style="text-align: left; color: #15803d;"><strong>{{ number_format($invoice['payable_amount']) }}</strong> تومان</td>
+                        <td style="text-align: left; color: #15803d;"><strong>{{ fa_num($invoice['payable_amount'], true) }}</strong> تومان</td>
                     </tr>
                     @if(!empty($invoice['payment_method']))
                     <tr>
