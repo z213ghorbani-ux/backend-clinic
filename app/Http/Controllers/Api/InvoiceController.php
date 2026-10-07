@@ -2,13 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreInvoiceRequest;
 use App\Http\Requests\UpdateInvoiceRequest;
 use App\Http\Requests\PayInvoiceRequest;
 use App\Models\Appointment;
 use App\Models\Invoice;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -159,56 +159,23 @@ class InvoiceController extends Controller
     }
 
     /**
-     * خروجی PDF رسمی فاکتور
+     * خروجی PDF رسمی فاکتور (تولید با موتور استاندارد mPDF و منطق جامع ArchiveController)
      */
     public function officialPdf(Request $request, $id)
     {
-        // ۱. ابتدا جستجو بر اساس شناسه خود فاکتور
-        $invoice = \App\Models\Invoice::with(['archive.patient', 'archive.doctor', 'items'])
-            ->find($id);
+        // بررسی شناسه ارسالی: فاکتور یا پرونده آرشیو
+        $lookupKey = $id;
 
-        // اگر پیدا نشد، ممکن است $id مربوط به رکورد آرشیو باشد
-        if (!$invoice) {
-            $invoice = \App\Models\Invoice::with(['archive.patient', 'archive.doctor', 'items'])
-                ->whereHas('archive', function ($q) use ($id) {
-                    $q->where('id', $id);
-                })
-                ->first();
+        $invoice = Invoice::with('archive')->find($id);
+        if ($invoice && !empty($invoice->archive?->tracking_token)) {
+            $lookupKey = $invoice->archive->tracking_token;
+        } elseif ($invoice && !empty($invoice->archive_id)) {
+            $lookupKey = $invoice->archive_id;
         }
 
-        // ۲. پیدا کردن آرشیو مرتبط یا مستقیماً از روی شناسه
-        $archive = null;
-        if ($invoice && $invoice->archive) {
-            $archive = $invoice->archive;
-        } else {
-            $archive = \App\Models\Archive::with(['patient', 'doctor'])->find($id);
-        }
-
-        if (!$invoice && !$archive) {
-            return response()->json([
-                'message' => "هیچ فاکتور یا رکوردی با شناسه {$id} یافت نشد."
-            ], 404);
-        }
-
-        // ۳. تبدیل لوگو به Base64 طبق استاندارد
-        $logoPath = public_path('images/logo.png');
-        $logoBase64 = '';
-        if (file_exists($logoPath)) {
-            $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
-        }
-
-        // ۴. ارسال داده‌ها به View و تولید PDF
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.portal-invoice', [
-            'invoice'    => $invoice,
-            'archive'    => $archive,
-            'patient'    => $invoice?->archive?->patient ?? $archive?->patient,
-            'logoBase64' => $logoBase64,
-        ]);
-
-        return $pdf->stream("invoice-{$id}.pdf");
+        // فراخوانی مستقیم منطق کامل mPDF که در ArchiveController پیاده‌سازی شده است
+        return app(ArchiveController::class)->portalInvoicePdf($request, (string) $lookupKey);
     }
-
-
 
     /**
      * بررسی وضعیت ویزیت یا فاکتور باز بیمار
