@@ -205,7 +205,7 @@
                 <img src="{{ $logo }}" alt="لوگو" style="max-height: 62px; max-width: 120px;">
             </td>
             @endif
-            <td>
+            <td></br>
                 <div class="clinic-title">مرکز آریتمی تهران</div>
                 <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
             </td>
@@ -268,7 +268,7 @@
     <table class="head-table">
         <tr>
             <td>
-                <div class="items-title">ریز اقلام صورتحساب درمانی</div>
+                <div class="items-title">صورتحساب درمانی</div>
                 <div style="font-size: 10.5px; color: #4a5568;">
                     بیمار: <strong>{{ $patient['name'] }}</strong> &nbsp;|&nbsp; کد ملی: {{ $patient['national_code'] }}
                 </div>
