@@ -36,6 +36,10 @@
             vertical-align: middle;
         }
 
+        .head-table td img {
+            display: block;
+        }
+
         .clinic-title {
             font-size: 20px;
             font-weight: bold;
@@ -201,11 +205,11 @@
     <table class="head-table">
         <tr>
             @if(!empty($logo))
-            <td style="width: 16%;">
-                <img src="{{ $logo }}" alt="لوگو" style="max-height: 62px; max-width: 120px;">
+            <td style="width: 18%; text-align: left; padding-left: 10px;">
+                <img src="{{ $logo }}" alt="لوگو" style="height: 62px; width: auto;">
             </td>
             @endif
-            <td></br>
+            <td style="text-align: right;">
                 <div class="clinic-title">مرکز آریتمی تهران</div>
                 <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
             </td>
@@ -216,6 +220,7 @@
             </td>
         </tr>
     </table>
+
 
     <table class="patient-bar">
         <tr>
