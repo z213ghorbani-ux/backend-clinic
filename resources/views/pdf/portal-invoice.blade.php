@@ -78,13 +78,6 @@
             margin-top: 16px;
         }
 
-        .cert-title {
-            color: #0f766e;
-            font-weight: bold;
-            font-size: 12px;
-            margin-bottom: 8px;
-        }
-
         .cert-text {
             font-size: 11px;
             color: #2d3748;
@@ -271,13 +264,16 @@
 
     <table class="head-table">
         <tr>
-            <td>
-                <div class="items-title">صورتحساب درمانی</div>
-                <div style="font-size: 10.5px; color: #4a5568;">
-                    بیمار: <strong>{{ $patient['name'] }}</strong> &nbsp;|&nbsp; کد ملی: {{ fa_num($patient['national_code']) }}
-                </div>
+            @if(!empty($logo))
+            <td style="width: 18%; text-align: left; padding-left: 10px;">
+                <img src="{{ $logo }}" alt="لوگو" style="height: 62px; width: auto;">
             </td>
-            <td class="meta" style="width: 32%;">
+            @endif
+            <td style="text-align: right;">
+                <div class="clinic-title">مرکز آریتمی تهران</div>
+                <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
+            </td>
+            <td class="meta" style="width: 30%;">
                 <div><strong>شماره پرونده / فاکتور:</strong> #{{ fa_num($invoice['file_number']) }}</div>
                 <div><strong>شماره فاکتور:</strong> {{ fa_num($invoice['invoice_number']) }}</div>
                 <div><strong>تاریخ صدور:</strong> {{ fa_num($invoice['issued_at']) }}</div>
