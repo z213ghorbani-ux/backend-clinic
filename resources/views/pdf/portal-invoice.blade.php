@@ -7,11 +7,10 @@
 
     <style>
         @page {
-            margin-top: 36mm;
+            margin-top: 12mm;
             margin-bottom: 20mm;
             margin-left: 10mm;
             margin-right: 10mm;
-            margin-header: 4mm;
             margin-footer: 5mm;
         }
 
@@ -32,7 +31,6 @@
             font-size: 9.5px;
             font-weight: bold;
             padding: 4px 8px;
-            margin-top: 2px;
             margin-bottom: 8px;
         }
 
@@ -87,7 +85,7 @@
             font-size: 13px;
             font-weight: bold;
             color: #1a365d;
-            margin: 6px 0 10px 0;
+            margin: 4px 0 8px 0;
             padding: 2px 0;
         }
 
@@ -95,7 +93,7 @@
             border: 1px dashed #a0aec0;
             background-color: #f8fafc;
             padding: 10px 12px;
-            margin-top: 6px;
+            margin-top: 4px;
         }
 
         .cert-text {
@@ -136,7 +134,7 @@
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 6px;
+            margin-top: 4px;
         }
 
         .items-table th {
@@ -189,32 +187,6 @@
     $hasPrescription = trim((string) ($doctorPrescriptionText ?? '')) !== '';
     @endphp
 
-    {{-- هدر تکرارشونده و مشترک هر دو صفحه --}}
-    <htmlpageheader name="clinicHeader">
-        <table class="head-table">
-            <tr>
-                <td style="width: 16%; text-align: left; padding-left: 8px;">
-                    @if(!empty($logo))
-                    <img src="{{ $logo }}" alt="لوگو" style="height: 52px; width: auto;">
-                    @endif
-                </td>
-
-                <td style="width: 54%; text-align: right;">
-                    <div class="clinic-title">مرکز آریتمی تهران</div>
-                    <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
-                </td>
-
-                <td class="meta" style="width: 30%;">
-                    <div><strong>شماره پرونده:</strong> #{{ fa_num($invoice['file_number'] ?? '---') }}</div>
-                    <div><strong>شماره فاکتور:</strong> {{ fa_num($invoice['invoice_number'] ?? '---') }}</div>
-                    <div><strong>کد رهگیری:</strong> {{ fa_num($invoice['tracking_code'] ?? '---') }}</div>
-                    <div><strong>تاریخ صدور:</strong> {{ fa_num($invoice['issued_at'] ?? '---') }}</div>
-                </td>
-            </tr>
-        </table>
-    </htmlpageheader>
-    <sethtmlpageheader name="clinicHeader" value="on" show-this-page="1" />
-
     {{-- فوتر مشترک هر دو صفحه --}}
     <htmlpagefooter name="clinicFooter">
         <table class="footer-table">
@@ -233,6 +205,26 @@
     <sethtmlpagefooter name="clinicFooter" value="on" />
 
     {{-- ===================== صفحه ۱ ===================== --}}
+    <table class="head-table">
+        <tr>
+            <td style="width: 16%; text-align: left; padding-left: 8px;">
+                @if(!empty($logo))
+                <img src="{{ $logo }}" alt="لوگو" style="height: 52px; width: auto;">
+                @endif
+            </td>
+            <td style="width: 54%; text-align: right;">
+                <div class="clinic-title">مرکز آریتمی تهران</div>
+                <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
+            </td>
+            <td class="meta" style="width: 30%;">
+                <div><strong>شماره پرونده:</strong> #{{ fa_num($invoice['file_number'] ?? '---') }}</div>
+                <div><strong>شماره فاکتور:</strong> {{ fa_num($invoice['invoice_number'] ?? '---') }}</div>
+                <div><strong>کد رهگیری:</strong> {{ fa_num($invoice['tracking_code'] ?? '---') }}</div>
+                <div><strong>تاریخ صدور:</strong> {{ fa_num($invoice['issued_at'] ?? '---') }}</div>
+            </td>
+        </tr>
+    </table>
+
     <table class="patient-bar">
         <tr>
             <td><strong>بیمار:</strong> {{ $patient['name'] ?? '---' }}</td>
@@ -281,6 +273,26 @@
     <pagebreak />
 
     {{-- ===================== صفحه ۲ ===================== --}}
+    <table class="head-table">
+        <tr>
+            <td style="width: 16%; text-align: left; padding-left: 8px;">
+                @if(!empty($logo))
+                <img src="{{ $logo }}" alt="لوگو" style="height: 52px; width: auto;">
+                @endif
+            </td>
+            <td style="width: 54%; text-align: right;">
+                <div class="clinic-title">مرکز آریتمی تهران</div>
+                <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
+            </td>
+            <td class="meta" style="width: 30%;">
+                <div><strong>شماره پرونده:</strong> #{{ fa_num($invoice['file_number'] ?? '---') }}</div>
+                <div><strong>شماره فاکتور:</strong> {{ fa_num($invoice['invoice_number'] ?? '---') }}</div>
+                <div><strong>کد رهگیری:</strong> {{ fa_num($invoice['tracking_code'] ?? '---') }}</div>
+                <div><strong>تاریخ صدور:</strong> {{ fa_num($invoice['issued_at'] ?? '---') }}</div>
+            </td>
+        </tr>
+    </table>
+
     <table class="patient-bar">
         <tr>
             <td><strong>بیمار:</strong> {{ $patient['name'] ?? '---' }}</td>
