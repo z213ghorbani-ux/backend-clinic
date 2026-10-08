@@ -4,7 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <title>صورتحساب رسمی مرکز آریتمی تهران</title>
+
     <style>
+        @page {
+            margin-top: 62mm;
+            margin-bottom: 22mm;
+            margin-left: 12mm;
+            margin-right: 12mm;
+            margin-header: 5mm;
+            margin-footer: 8mm;
+        }
+
         body {
             font-family: 'dejavusans', 'vazir', 'tahoma', sans-serif;
             font-size: 11px;
@@ -32,7 +42,7 @@
         }
 
         .head-table td {
-            padding: 4px 6px 8px 6px;
+            padding: 4px 6px 8px;
             vertical-align: middle;
         }
 
@@ -52,7 +62,7 @@
         }
 
         .meta {
-            font-size: 10px;
+            font-size: 9.5px;
             color: #2d3748;
             text-align: left;
             line-height: 1.7;
@@ -63,12 +73,21 @@
             border-collapse: collapse;
             border: 1px solid #cbd5e0;
             background-color: #f7fafc;
-            margin-top: 14px;
+            margin-top: 8px;
         }
 
         .patient-bar td {
-            padding: 9px 12px;
-            font-size: 11px;
+            padding: 6px 10px;
+            font-size: 10.5px;
+        }
+
+        .invoice-title {
+            margin-top: 5px;
+            padding: 3px 0 5px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: bold;
+            color: #1a365d;
         }
 
         .cert-box {
@@ -113,12 +132,6 @@
             margin-top: 4px;
         }
 
-        .items-title {
-            font-size: 15px;
-            font-weight: bold;
-            color: #1a365d;
-        }
-
         .items-table {
             width: 100%;
             border-collapse: collapse;
@@ -129,7 +142,7 @@
             background-color: #edf2f7;
             color: #2d3748;
             border: 1px solid #cbd5e0;
-            padding: 8px 8px;
+            padding: 8px;
             font-size: 10.5px;
             font-weight: bold;
             text-align: center;
@@ -137,7 +150,7 @@
 
         .items-table td {
             border: 1px solid #cbd5e0;
-            padding: 8px 8px;
+            padding: 8px;
             font-size: 10.5px;
             text-align: center;
         }
@@ -175,61 +188,109 @@
     $hasPrescription = trim((string) ($doctorPrescriptionText ?? '')) !== '';
     @endphp
 
-    <!-- فوتر مشترک هر دو صفحه -->
+    {{-- هدر مشترک تمام صفحات --}}
+    <htmlpageheader name="clinicHeader">
+        <table class="head-table">
+            <tr>
+                <td style="width: 18%; text-align: left; padding-left: 10px;">
+                    @if(!empty($logo))
+                    <img src="{{ $logo }}" alt="لوگو" style="height: 62px; width: auto;">
+                    @endif
+                </td>
+
+                <td style="width: 52%; text-align: right;">
+                    <div class="clinic-title">مرکز آریتمی تهران</div>
+                    <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
+                </td>
+
+                <td class="meta" style="width: 30%;">
+                    <div>
+                        <strong>شماره پرونده:</strong>
+                        #{{ fa_num($invoice['file_number'] ?? '---') }}
+                    </div>
+                    <div>
+                        <strong>شماره فاکتور:</strong>
+                        {{ fa_num($invoice['invoice_number'] ?? '---') }}
+                    </div>
+                    <div>
+                        <strong>کد رهگیری:</strong>
+                        {{ fa_num($invoice['tracking_code'] ?? '---') }}
+                    </div>
+                    <div>
+                        <strong>تاریخ صدور:</strong>
+                        {{ fa_num($invoice['issued_at'] ?? '---') }}
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+        <table class="patient-bar">
+            <tr>
+                <td>
+                    <strong>بیمار:</strong>
+                    {{ $patient['name'] ?? '---' }}
+                </td>
+                <td>
+                    <strong>کد ملی:</strong>
+                    {{ fa_num($patient['national_code'] ?? '---') }}
+                </td>
+                <td>
+                    <strong>شماره موبایل:</strong>
+                    {{ fa_num($patient['phone'] ?? '---') }}
+                </td>
+            </tr>
+        </table>
+
+        <div class="invoice-title">صورتحساب درمانی</div>
+    </htmlpageheader>
+
+    <sethtmlpageheader
+        name="clinicHeader"
+        value="on"
+        show-this-page="1" />
+
+    {{-- فوتر مشترک تمام صفحات --}}
     <htmlpagefooter name="clinicFooter">
         <table class="footer-table">
             <tr>
                 <td style="width: 60%; text-align: right;">
-                    <strong>تهران، خیابان ولیعصر، خیابان توانیر، بالاتر از بیمارستان دی، ساختمان شماره ۵</strong><br>
+                    <strong>
+                        تهران، خیابان ولیعصر، خیابان توانیر، بالاتر از بیمارستان دی، ساختمان شماره ۵
+                    </strong>
+                    <br>
                     تلفن: {{ fa_num('021 88887270') }}
                 </td>
+
                 <td style="width: 40%; text-align: left; direction: ltr;">
-                    <strong style="color: #0f766e; font-size: 12px;">www.TehranEP.center</strong><br>
+                    <strong style="color: #0f766e; font-size: 12px;">
+                        www.TehranEP.center
+                    </strong>
+                    <br>
                     Tel &amp; WhatsApp: +98(21) 88887270
                 </td>
             </tr>
         </table>
     </htmlpagefooter>
+
     <sethtmlpagefooter name="clinicFooter" value="on" />
 
-    <!-- ===================== صفحه ۱ ===================== -->
-    <div class="page-banner">صفحه ۱ از ۲ (اطلاعات پرونده و تاییدیه پزشک)</div>
-
-    <table class="head-table">
-        <tr>
-            @if(!empty($logo))
-            <td style="width: 18%; text-align: left; padding-left: 10px;">
-                <img src="{{ $logo }}" alt="لوگو" style="height: 62px; width: auto;">
-            </td>
-            @endif
-            <td style="text-align: right;">
-                <div class="clinic-title">مرکز آریتمی تهران</div>
-                <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
-            </td>
-            <td class="meta" style="width: 30%;">
-                <div><strong>شماره پرونده / فاکتور:</strong> #{{ fa_num($invoice['file_number']) }}</div>
-                <div><strong>کد رهگیری:</strong> {{ fa_num($invoice['tracking_code']) }}</div>
-                <div><strong>تاریخ صدور:</strong> {{ fa_num($invoice['issued_at']) }}</div>
-            </td>
-        </tr>
-    </table>
-
-    <table class="patient-bar">
-        <tr>
-            <td><strong>بیمار:</strong> {{ $patient['name'] }}</td>
-            <td><strong>کد ملی:</strong> {{ fa_num($patient['national_code']) }}</td>
-            <td><strong>شماره موبایل:</strong> {{ fa_num($patient['phone']) }}</td>
-        </tr>
-    </table>
+    {{-- ===================== صفحه ۱ ===================== --}}
+    <div class="page-banner">
+        صفحه ۱ از ۲ (اطلاعات پرونده و تاییدیه پزشک)
+    </div>
 
     <div class="cert-box">
         <div class="cert-text">
-            {{ $cert['title'] }} <strong>{{ $cert['name'] }}</strong>
-            با کد ملی <strong>{{ fa_num($cert['national_code']) }}</strong>
-            در تاریخ <strong>{{ fa_num($cert['date']) }}</strong>
+            {{ $cert['title'] ?? '' }}
+            <strong>{{ $cert['name'] ?? '' }}</strong>
+            با کد ملی
+            <strong>{{ fa_num($cert['national_code'] ?? '---') }}</strong>
+            در تاریخ
+            <strong>{{ fa_num($cert['date'] ?? '---') }}</strong>
             به مرکز آریتمی تهران مراجعه نموده و خدمات
-            <strong>{{ $cert['services'] }}</strong>
+            <strong>{{ $cert['services'] ?? '' }}</strong>
             برای ایشان ثبت و انجام شده است.
+
             @if($hasPrescription)
             <br>{!! nl2br(e($doctorPrescriptionText)) !!}
             @endif
@@ -243,11 +304,15 @@
             @forelse($visitDoctors as $doc)
             <td>
                 @if(!empty($doc['stamp']))
-                <img src="{{ $doc['stamp'] }}" alt="مهر پزشک" style="max-height: 120px; max-width: 220px;">
+                <img
+                    src="{{ $doc['stamp'] }}"
+                    alt="مهر پزشک"
+                    style="max-height: 120px; max-width: 220px;">
                 @else
                 <div style="height: 90px;"></div>
                 @endif
-                <div class="doc-name">{{ $doc['name'] }}</div>
+
+                <div class="doc-name">{{ $doc['name'] ?? '' }}</div>
             </td>
             @empty
             <td>
@@ -259,27 +324,10 @@
 
     <pagebreak />
 
-    <!-- ===================== صفحه ۲ ===================== -->
-    <div class="page-banner">صفحه ۲ از ۲ (ریز اقلام خدمات و تسویه حساب)</div>
-
-    <table class="head-table">
-        <tr>
-            @if(!empty($logo))
-            <td style="width: 18%; text-align: left; padding-left: 10px;">
-                <img src="{{ $logo }}" alt="لوگو" style="height: 62px; width: auto;">
-            </td>
-            @endif
-            <td style="text-align: right;">
-                <div class="clinic-title">مرکز آریتمی تهران</div>
-                <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
-            </td>
-            <td class="meta" style="width: 30%;">
-                <div><strong>شماره پرونده / فاکتور:</strong> #{{ fa_num($invoice['file_number']) }}</div>
-                <div><strong>شماره فاکتور:</strong> {{ fa_num($invoice['invoice_number']) }}</div>
-                <div><strong>تاریخ صدور:</strong> {{ fa_num($invoice['issued_at']) }}</div>
-            </td>
-        </tr>
-    </table>
+    {{-- ===================== صفحه ۲ ===================== --}}
+    <div class="page-banner">
+        صفحه ۲ از ۲ (ریز اقلام خدمات و تسویه حساب)
+    </div>
 
     <table class="items-table">
         <thead>
@@ -291,23 +339,31 @@
                 <th style="width: 18%;">مبلغ (تومان)</th>
             </tr>
         </thead>
+
         <tbody>
             @forelse($rows as $index => $row)
             <tr>
                 <td>{{ fa_num($index + 1) }}</td>
-                <td>{{ fa_num($row['code']) }}</td>
+                <td>{{ fa_num($row['code'] ?? '---') }}</td>
+
                 <td style="text-align: right;">
                     @if(!empty($row['parent_name']))
-                    <div style="font-size: 8.5px; color: #718096;">{{ $row['parent_name'] }}</div>
+                    <div style="font-size: 8.5px; color: #718096;">
+                        {{ $row['parent_name'] }}
+                    </div>
                     @endif
-                    <strong>{{ $row['service_name'] }}</strong>
+
+                    <strong>{{ $row['service_name'] ?? '' }}</strong>
                 </td>
+
                 <td>{{ $row['doctor_name'] ?? '---' }}</td>
-                <td>{{ fa_num($row['amount'], true) }}</td>
+                <td>{{ fa_num($row['amount'] ?? 0, true) }}</td>
             </tr>
             @empty
             <tr>
-                <td colspan="5" style="padding: 15px; color: #a0aec0;">هیچ ردیف خدمتی ثبت نشده است.</td>
+                <td colspan="5" style="padding: 15px; color: #a0aec0;">
+                    هیچ ردیف خدمتی ثبت نشده است.
+                </td>
             </tr>
             @endforelse
         </tbody>
@@ -316,32 +372,49 @@
     <table style="width: 100%; margin-top: 16px; border-collapse: collapse;">
         <tr>
             <td style="width: 52%;"></td>
+
             <td style="width: 48%; vertical-align: top;">
                 <table class="sum-table">
                     <tr>
                         <td style="color: #4a5568;">مجموع خدمات:</td>
-                        <td style="text-align: left;"><strong>{{ fa_num($invoice['total_amount'], true) }}</strong> تومان</td>
+                        <td style="text-align: left;">
+                            <strong>{{ fa_num($invoice['total_amount'] ?? 0, true) }}</strong>
+                            تومان
+                        </td>
                     </tr>
+
                     @if(($invoice['discount'] ?? 0) > 0)
                     <tr>
                         <td style="color: #e53e3e;">تخفیف:</td>
-                        <td style="text-align: left; color: #e53e3e;">{{ fa_num($invoice['discount'], true) }} تومان</td>
+                        <td style="text-align: left; color: #e53e3e;">
+                            {{ fa_num($invoice['discount'], true) }} تومان
+                        </td>
                     </tr>
                     @endif
+
                     @if(($invoice['insurance_share'] ?? 0) > 0)
                     <tr>
                         <td style="color: #2b6cb0;">سهم بیمه:</td>
-                        <td style="text-align: left; color: #2b6cb0;">{{ fa_num($invoice['insurance_share'], true) }} تومان</td>
+                        <td style="text-align: left; color: #2b6cb0;">
+                            {{ fa_num($invoice['insurance_share'], true) }} تومان
+                        </td>
                     </tr>
                     @endif
+
                     <tr>
                         <td style="color: #4a5568;">مبلغ نهایی پرداختی:</td>
-                        <td style="text-align: left; color: #15803d;"><strong>{{ fa_num($invoice['payable_amount'], true) }}</strong> تومان</td>
+                        <td style="text-align: left; color: #15803d;">
+                            <strong>{{ fa_num($invoice['payable_amount'] ?? 0, true) }}</strong>
+                            تومان
+                        </td>
                     </tr>
+
                     @if(!empty($invoice['payment_method']))
                     <tr>
                         <td style="color: #4a5568;">روش پرداخت:</td>
-                        <td style="text-align: left;">{{ $invoice['payment_method'] }}</td>
+                        <td style="text-align: left;">
+                            {{ $invoice['payment_method'] }}
+                        </td>
                     </tr>
                     @endif
                 </table>
@@ -349,18 +422,24 @@
         </tr>
     </table>
 
-    <div class="doctors-title" style="margin-top: 26px;">مهر و امضای پزشک:</div>
+    <div class="doctors-title" style="margin-top: 26px;">
+        مهر و امضای پزشک:
+    </div>
 
     <table class="doctors-table">
         <tr>
             @forelse($visitDoctors as $doc)
             <td>
                 @if(!empty($doc['stamp']))
-                <img src="{{ $doc['stamp'] }}" alt="مهر پزشک" style="max-height: 110px; max-width: 200px;">
+                <img
+                    src="{{ $doc['stamp'] }}"
+                    alt="مهر پزشک"
+                    style="max-height: 110px; max-width: 200px;">
                 @else
                 <div style="height: 80px;"></div>
                 @endif
-                <div class="doc-name">{{ $doc['name'] }}</div>
+
+                <div class="doc-name">{{ $doc['name'] ?? '' }}</div>
             </td>
             @empty
             <td>
