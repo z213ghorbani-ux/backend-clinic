@@ -56,6 +56,11 @@ class ServiceController extends Controller
             'is_active'  => $validated['is_active'] ?? true,
             'is_visit'   => $validated['is_visit'] ?? false,
             'sort_order' => $validated['sort_order'] ?? 0,
+            // فیلدهای مهر و امضا
+            'has_signature'  => $request->boolean('has_signature'),
+            'signature_x'    => $request->filled('signature_x') ? (float) $request->input('signature_x') : null,
+            'signature_y'    => $request->filled('signature_y') ? (float) $request->input('signature_y') : null,
+            'signature_page' => $validated['signature_page'] ?? 'last',
         ]);
 
         return response()->json([
@@ -92,6 +97,11 @@ class ServiceController extends Controller
             'is_active'  => $validated['is_active'] ?? $service->is_active,
             'is_visit'   => $validated['is_visit'] ?? $service->is_visit,
             'sort_order' => $validated['sort_order'] ?? $service->sort_order,
+            // فیلدهای مهر و امضا
+            'has_signature'  => $request->boolean('has_signature'),
+            'signature_x'    => $request->filled('signature_x') ? (float) $request->input('signature_x') : null,
+            'signature_y'    => $request->filled('signature_y') ? (float) $request->input('signature_y') : null,
+            'signature_page' => $validated['signature_page'] ?? 'last',
         ]);
 
         return response()->json([
