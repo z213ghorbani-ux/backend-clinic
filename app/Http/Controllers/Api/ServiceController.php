@@ -32,13 +32,17 @@ class ServiceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'parent_id'  => 'nullable|exists:services,id',
-            'name'       => 'required|string|max:255',
-            'code'       => 'nullable|string|max:50|unique:services,code',
-            'price'      => 'nullable|numeric|min:0',
-            'is_active'  => 'nullable|boolean',
-            'is_visit'   => 'nullable|boolean',
-            'sort_order' => 'nullable|integer',
+            'parent_id'      => 'nullable|exists:services,id',
+            'name'           => 'required|string|max:255',
+            'code'           => 'nullable|string|max:50|unique:services,code',
+            'price'          => 'nullable|numeric|min:0',
+            'is_active'      => 'nullable|boolean',
+            'is_visit'       => 'nullable|boolean',
+            'sort_order'     => 'nullable|integer',
+            'has_signature'  => 'nullable|boolean',
+            'signature_x'    => 'nullable|numeric|min:0',
+            'signature_y'    => 'nullable|numeric|min:0',
+            'signature_page' => 'nullable|string|in:first,last',
         ], [
             'name.required' => 'نام خدمت الزامی است.',
             'code.unique'   => 'این کد خدمت قبلاً ثبت شده است.',
@@ -67,13 +71,17 @@ class ServiceController extends Controller
         $service = Service::findOrFail($id);
 
         $validated = $request->validate([
-            'parent_id'  => ['nullable', 'exists:services,id', Rule::notIn([$service->id])],
-            'name'       => 'required|string|max:255',
-            'code'       => ['nullable', 'string', 'max:50', Rule::unique('services', 'code')->ignore($service->id)],
-            'price'      => 'nullable|numeric|min:0',
-            'is_active'  => 'nullable|boolean',
-            'is_visit'   => 'nullable|boolean',
-            'sort_order' => 'nullable|integer',
+            'parent_id'      => ['nullable', 'exists:services,id', Rule::notIn([$service->id])],
+            'name'           => 'required|string|max:255',
+            'code'           => ['nullable', 'string', 'max:50', Rule::unique('services', 'code')->ignore($service->id)],
+            'price'          => 'nullable|numeric|min:0',
+            'is_active'      => 'nullable|boolean',
+            'is_visit'       => 'nullable|boolean',
+            'sort_order'     => 'nullable|integer',
+            'has_signature'  => 'nullable|boolean',
+            'signature_x'    => 'nullable|numeric|min:0',
+            'signature_y'    => 'nullable|numeric|min:0',
+            'signature_page' => 'nullable|string|in:first,last',
         ]);
 
         $service->update([

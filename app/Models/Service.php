@@ -15,6 +15,10 @@ class Service extends Model
         'code',
         'price',
         'is_active',
+        'has_signature',
+        'signature_x',
+        'signature_y',
+        'signature_page',
         'is_visit',
         'sort_order',
     ];
@@ -24,6 +28,11 @@ class Service extends Model
         'is_visit'  => 'boolean',
         'price'     => 'integer',
         'sort_order' => 'integer',
+        'has_signature' => 'boolean',
+        'signature_x'   => 'float',
+        'signature_y'   => 'float',
+        'signature_page' => 'string',
+
     ];
 
     // رابطه با والد
