@@ -16,6 +16,10 @@ return new class extends Migration
             $table->string('code')->nullable()->unique();    // کد خدمت برای فاکتور
             $table->unsignedBigInteger('price')->default(0); // تعرفه (تومان/ریال)
             $table->boolean('is_active')->default(true);     // وضعیت فعال/غیرفعال
+            $table->boolean('has_signature')->default(false); // درج خودکار مهر و امضا
+            $table->float('signature_x')->nullable();         // موقعیت افقی
+            $table->float('signature_y')->nullable();         // موقعیت عمودی
+            $table->string('signature_page')->nullable();     // صفحه اعمال مهر (مثلاً last)
             $table->boolean('is_visit')->default(false);     // آیا از جنس ویزیت است؟
             $table->integer('sort_order')->default(0);       // ترتیب نمایش
             $table->timestamps();
