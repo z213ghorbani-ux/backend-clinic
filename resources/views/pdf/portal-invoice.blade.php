@@ -321,10 +321,7 @@
                 <td>{{ fa_num($index + 1) }}</td>
                 <td>{{ fa_num($row['code'] ?? '---') }}</td>
                 <td style="text-align: right;">
-                    @if(!empty($row['parent_name']))
-                    <div style="font-size: 8px; color: #718096;">{{ $row['parent_name'] }}</div>
-                    @endif
-                    <strong>{{ $row['service_name'] ?? '' }}</strong>
+                    {{ $row['service_name'] ?? '' }}
                 </td>
                 <td>{{ $row['doctor_name'] ?? '---' }}</td>
                 <td>{{ fa_num($row['amount'] ?? 0, true) }}</td>
