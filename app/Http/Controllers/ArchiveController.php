@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Archive;
 use App\Models\Doctor;
-use App\Models\Service;
 use App\Services\SignatureStampService;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
@@ -279,6 +278,8 @@ class ArchiveController extends Controller
                     $stampPath = $doctor?->stamp_path;
                 }
 
+                // نکته: مهر روی فایل‌های PDF در فرانت‌اند (و بر اساس تنظیمات خدمت) زده می‌شود.
+                // این سرویس فقط روی فایل‌های تصویری مهر پزشک را درج می‌کند و PDF را دست‌نخورده ذخیره می‌کند.
                 $saveDirectory = 'archives/' . $validated['national_code'];
                 $path = $this->stampService->applyStampAndSave($file, $stampPath, $saveDirectory);
 
@@ -583,18 +584,7 @@ class ArchiveController extends Controller
         $mimeType = File::mimeType($foundPath) ?: 'application/octet-stream';
         $downloadName = basename($foundPath);
 
-        // بررسی و اعمال مهر داینامیک در صورت PDF بودن
-        if (str_contains(strtolower($mimeType), 'pdf') || Str::endsWith(strtolower($foundPath), '.pdf')) {
-            $stampedContent = $this->applyStampToPdf($foundPath, $archive);
-            if ($stampedContent !== null) {
-                return response($stampedContent, 200, [
-                    'Content-Type' => 'application/pdf',
-                    'Content-Disposition' => 'attachment; filename="' . rawurlencode($downloadName) . '"',
-                    'Access-Control-Expose-Headers' => 'Content-Disposition'
-                ]);
-            }
-        }
-
+        // فایل همان‌طور که ذخیره شده (از قبل ممهور) دانلود می‌شود.
         return response()->download($foundPath, $downloadName, [
             'Content-Type' => $mimeType,
             'Access-Control-Expose-Headers' => 'Content-Disposition'
@@ -725,19 +715,7 @@ class ArchiveController extends Controller
             ob_end_clean();
         }
 
-        // اعمال مهر داینامیک برای پورتال بیمار
-        $stampedContent = $this->applyStampToPdf($filePath, $archive);
-        if ($stampedContent !== null) {
-            return response($stampedContent, 200, [
-                'Content-Type'        => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . rawurlencode($originalName) . '"',
-                'Cache-Control'       => 'no-store, no-cache, must-revalidate',
-                'Pragma'              => 'no-cache',
-                'Expires'             => '0',
-                'Content-Length'      => (string) strlen($stampedContent),
-            ]);
-        }
-
+        // فایل همان‌طور که ذخیره شده (از قبل ممهور) نمایش داده می‌شود.
         $headers = [
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . rawurlencode($originalName) . '"',
@@ -1145,8 +1123,7 @@ class ArchiveController extends Controller
             public_path('stamps/' . basename($cleanPath)),
         ]);
 
-        \Log::info('logo candidates', array_map(fn($p) => ['path' => $p, 'exists' => file_exists($p)], $candidates));
-
+        Log::debug('image candidates', array_map(fn($p) => ['path' => $p, 'exists' => file_exists($p)], $candidates));
 
         foreach ($candidates as $candidate) {
             if (is_string($candidate) && file_exists($candidate) && is_file($candidate) && filesize($candidate) > 0) {
@@ -1287,79 +1264,5 @@ class ArchiveController extends Controller
         ];
 
         $archive->update(['history' => $history]);
-    }
-
-    /**
-     * اعمال مهر و امضا روی فایل PDF به صورت داینامیک
-     */
-    private function applyStampToPdf(string $sourcePdfPath, Archive $archive): ?string
-    {
-        try {
-            // پیدا کردن سرویس مرتبط با پرونده
-            $service = null;
-            if (!empty($archive->service_id)) {
-                $service = Service::find($archive->service_id);
-            }
-
-            // اگر سرویس مهر نداشت یا فعال نبود، نیازی به مهر زدن نیست
-            if (!$service || empty($service->has_signature)) {
-                return null;
-            }
-
-            // مسیر فایل تصویر مهر و امضا
-            $stampPath = public_path('images/signature.png');
-            if (!file_exists($stampPath)) {
-                $stampPath = public_path('images/stamp.png');
-            }
-            if (!file_exists($stampPath)) {
-                $stampPath = storage_path('app/public/images/signature.png');
-            }
-
-            if (!file_exists($stampPath)) {
-                Log::warning('Stamp image not found at candidate paths.');
-                return null;
-            }
-
-            // مختصات و صفحه هدف
-            $x = (float) ($service->signature_x ?? 130);
-            $y = (float) ($service->signature_y ?? 210);
-            $targetPageOption = $service->signature_page ?? 'last';
-
-            // راه‌اندازی mPDF با قابلیت ایمپورت پی‌دی‌اف (FPDI)
-            $mpdf = new Mpdf([
-                'mode' => 'utf-8',
-                'format' => 'A4',
-                'margin_left' => 0,
-                'margin_right' => 0,
-                'margin_top' => 0,
-                'margin_bottom' => 0,
-            ]);
-
-            $pageCount = $mpdf->setSourceFile($sourcePdfPath);
-
-            // مشخص کردن شماره صفحه مقصد
-            $targetPageNum = ($targetPageOption === 'first') ? 1 : $pageCount;
-
-            for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-                $templateId = $mpdf->importPage($pageNo);
-                $size = $mpdf->getTemplateSize($templateId);
-
-                // اضافه کردن صفحه با سایز دقیق صفحه اصلی
-                $mpdf->AddPage($size['orientation'], '', '', '', '', 0, 0, 0, 0, 0, 0);
-                $mpdf->useTemplate($templateId);
-
-                // اگر صفحه هدف بود، مهر را اضافه کن
-                if ($pageNo === $targetPageNum) {
-                    // درج تصویر امضا در مختصات X و Y مشخص شده
-                    // پارامترها: مسیر، مختصات X، مختصات Y، عرض، ارتفاع
-                    $mpdf->Image($stampPath, $x, $y, 50, 0, 'png', '', true, false);
-                }
-            }
-
-            return $mpdf->Output('', Destination::STRING_RETURN);
-        } catch (\Throwable $e) {
-            Log::error('Error applying stamp overlay to PDF: ' . $e->getMessage());
-            return null; // در صورت بروز خطا، فایل اصلی دست‌نخورده برگردانده می‌شود
-        }
     }
 }

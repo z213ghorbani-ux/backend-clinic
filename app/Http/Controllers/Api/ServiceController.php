@@ -40,12 +40,15 @@ class ServiceController extends Controller
             'is_visit'       => 'nullable|boolean',
             'sort_order'     => 'nullable|integer',
             'has_signature'  => 'nullable|boolean',
-            'signature_x'    => 'nullable|numeric|min:0',
-            'signature_y'    => 'nullable|numeric|min:0',
+            // مختصات بر حسب میلی‌متر؛ مبدأ: گوشه بالا-چپ صفحه A4 (۲۱۰×۲۹۷)
+            'signature_x'    => 'nullable|numeric|min:0|max:210',
+            'signature_y'    => 'nullable|numeric|min:0|max:297',
             'signature_page' => 'nullable|string|in:first,last',
         ], [
-            'name.required' => 'نام خدمت الزامی است.',
-            'code.unique'   => 'این کد خدمت قبلاً ثبت شده است.',
+            'name.required'   => 'نام خدمت الزامی است.',
+            'code.unique'     => 'این کد خدمت قبلاً ثبت شده است.',
+            'signature_x.max' => 'موقعیت افقی مهر باید حداکثر ۲۱۰ میلی‌متر باشد.',
+            'signature_y.max' => 'موقعیت عمودی مهر باید حداکثر ۲۹۷ میلی‌متر باشد.',
         ]);
 
         $service = Service::create([
@@ -84,9 +87,15 @@ class ServiceController extends Controller
             'is_visit'       => 'nullable|boolean',
             'sort_order'     => 'nullable|integer',
             'has_signature'  => 'nullable|boolean',
-            'signature_x'    => 'nullable|numeric|min:0',
-            'signature_y'    => 'nullable|numeric|min:0',
+            // مختصات بر حسب میلی‌متر؛ مبدأ: گوشه بالا-چپ صفحه A4 (۲۱۰×۲۹۷)
+            'signature_x'    => 'nullable|numeric|min:0|max:210',
+            'signature_y'    => 'nullable|numeric|min:0|max:297',
             'signature_page' => 'nullable|string|in:first,last',
+        ], [
+            'name.required'   => 'نام خدمت الزامی است.',
+            'code.unique'     => 'این کد خدمت قبلاً ثبت شده است.',
+            'signature_x.max' => 'موقعیت افقی مهر باید حداکثر ۲۱۰ میلی‌متر باشد.',
+            'signature_y.max' => 'موقعیت عمودی مهر باید حداکثر ۲۹۷ میلی‌متر باشد.',
         ]);
 
         $service->update([
