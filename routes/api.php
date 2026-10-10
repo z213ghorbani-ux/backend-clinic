@@ -306,6 +306,22 @@ Route::middleware('auth:sanctum')->group(function () {
         [ServiceController::class, 'toggleStatus']
     )->whereNumber('service');
 
+    // سربرگ فایل پیوست خدمت: آپلود، حذف و دریافت تصویر (با احراز هویت)
+    Route::post(
+        'services/{service}/header',
+        [ServiceController::class, 'uploadHeader']
+    )->whereNumber('service');
+
+    Route::delete(
+        'services/{service}/header',
+        [ServiceController::class, 'deleteHeader']
+    )->whereNumber('service');
+
+    Route::get(
+        'services/{service}/header',
+        [ServiceController::class, 'showHeader']
+    )->whereNumber('service');
+
     Route::apiResource(
         'services',
         ServiceController::class
