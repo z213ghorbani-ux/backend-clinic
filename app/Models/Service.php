@@ -19,6 +19,7 @@ class Service extends Model
         'signature_x',
         'signature_y',
         'signature_page',
+        'header_path',
         'is_visit',
         'sort_order',
     ];
@@ -32,8 +33,18 @@ class Service extends Model
         'signature_x'   => 'float',
         'signature_y'   => 'float',
         'signature_page' => 'string',
-
     ];
+
+    // مسیر داخلی فایل در پاسخ API نمایش داده نمی‌شود؛ به‌جایش has_header برمی‌گردد
+    protected $hidden = ['header_path'];
+
+    protected $appends = ['has_header'];
+
+    // آیا این خدمت تصویر سربرگ دارد؟
+    public function getHasHeaderAttribute(): bool
+    {
+        return !empty($this->attributes['header_path'] ?? null);
+    }
 
     // رابطه با والد
     public function parent()

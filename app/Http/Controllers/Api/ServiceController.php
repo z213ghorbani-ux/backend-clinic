@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Service;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ServiceController extends Controller
@@ -124,6 +125,13 @@ class ServiceController extends Controller
     public function destroy($id)
     {
         $service = Service::findOrFail($id);
+
+        // حذف فایل سربرگ خدمت و زیرخدمت‌ها از دیسک
+        foreach ($service->children as $child) {
+            $this->removeHeaderFile($child);
+        }
+        $this->removeHeaderFile($service);
+
         $service->children()->delete();
         $service->delete();
 
@@ -131,6 +139,73 @@ class ServiceController extends Controller
             'status'  => 'success',
             'message' => 'خدمت حذف گردید.'
         ]);
+    }
+
+    // آپلود یا جایگزینی تصویر سربرگ خدمت
+    public function uploadHeader(Request $request, $id)
+    {
+        $service = Service::findOrFail($id);
+
+        $request->validate([
+            'header' => 'required|file|mimes:png,jpg,jpeg|max:5120',
+        ], [
+            'header.required' => 'تصویر سربرگ الزامی است.',
+            'header.mimes'    => 'سربرگ باید تصویر PNG یا JPG باشد.',
+            'header.max'      => 'حجم تصویر سربرگ نباید بیشتر از ۵ مگابایت باشد.',
+            'header.file'     => 'فایل سربرگ نامعتبر است.',
+        ]);
+
+        // حذف تصویر قبلی
+        $this->removeHeaderFile($service);
+
+        $path = $request->file('header')->store('service-headers', 'public');
+        $service->update(['header_path' => $path]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'سربرگ خدمت با موفقیت ذخیره شد.',
+            'data'    => $service->fresh(),
+        ]);
+    }
+
+    // حذف تصویر سربرگ خدمت
+    public function deleteHeader($id)
+    {
+        $service = Service::findOrFail($id);
+
+        $this->removeHeaderFile($service);
+        $service->update(['header_path' => null]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'سربرگ خدمت حذف شد.',
+            'data'    => $service->fresh(),
+        ]);
+    }
+
+    // نمایش تصویر سربرگ (برای پیش‌نمایش و درج روی PDF در فرانت‌اند)
+    public function showHeader($id)
+    {
+        $service = Service::findOrFail($id);
+        $path = $service->getAttributes()['header_path'] ?? null;
+
+        if (!$path || !Storage::disk('public')->exists($path)) {
+            return response()->json(['message' => 'سربرگی برای این خدمت ثبت نشده است.'], 404);
+        }
+
+        return response()->file(Storage::disk('public')->path($path), [
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
+    }
+
+    // حذف فایل فیزیکی سربرگ از دیسک (بدون تغییر در دیتابیس)
+    private function removeHeaderFile(Service $service): void
+    {
+        $path = $service->getAttributes()['header_path'] ?? null;
+
+        if ($path && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
     }
 
     // تغییر وضعیت فعال / غیرفعال

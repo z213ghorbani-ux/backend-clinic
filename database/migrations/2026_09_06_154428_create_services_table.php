@@ -12,16 +12,17 @@ return new class extends Migration
         Schema::create('services', function (Blueprint $table) {
             $table->id();
             $table->foreignId('parent_id')->nullable()->constrained('services')->nullOnDelete();
-            $table->string('name');                          // نام خدمت یا دسته
-            $table->string('code')->nullable()->unique();    // کد خدمت برای فاکتور
-            $table->unsignedBigInteger('price')->default(0); // تعرفه (تومان/ریال)
-            $table->boolean('is_active')->default(true);     // وضعیت فعال/غیرفعال
+            $table->string('name');                           // نام خدمت یا دسته
+            $table->string('code')->nullable()->unique();     // کد خدمت برای فاکتور
+            $table->unsignedBigInteger('price')->default(0);  // تعرفه (تومان/ریال)
+            $table->boolean('is_active')->default(true);      // وضعیت فعال/غیرفعال
             $table->boolean('has_signature')->default(false); // درج خودکار مهر و امضا
-            $table->float('signature_x')->nullable();         // موقعیت افقی
-            $table->float('signature_y')->nullable();         // موقعیت عمودی
-            $table->string('signature_page')->nullable();     // صفحه اعمال مهر (مثلاً last)
-            $table->boolean('is_visit')->default(false);     // آیا از جنس ویزیت است؟
-            $table->integer('sort_order')->default(0);       // ترتیب نمایش
+            $table->float('signature_x')->nullable();         // موقعیت افقی (میلی‌متر از لبه چپ)
+            $table->float('signature_y')->nullable();         // موقعیت عمودی (میلی‌متر از لبه بالا)
+            $table->string('signature_page')->nullable();     // صفحه اعمال مهر (first / last)
+            $table->string('header_path')->nullable();        // مسیر تصویر سربرگ فایل پیوست (دیسک public)
+            $table->boolean('is_visit')->default(false);      // آیا از جنس ویزیت است؟
+            $table->integer('sort_order')->default(0);        // ترتیب نمایش
             $table->timestamps();
         });
     }
