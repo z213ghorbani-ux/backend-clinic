@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Archive;
 use App\Models\Doctor;
+use App\Models\Service;
 use App\Services\SignatureStampService;
 use App\Services\SmsService;
 use Illuminate\Http\Request;
@@ -259,7 +260,25 @@ class ArchiveController extends Controller
             'files.*'           => 'file|max:20480',
             'file_doctors'      => 'nullable|array',
             'file_doctors.*'    => 'nullable|integer',
+            // شناسه خدمتِ هر فایل (هم‌اندیس با files[])؛ برای بررسی «پیوست اجباری»
+            'file_services'     => 'nullable|array',
+            'file_services.*'   => 'nullable|string|max:100',
         ]);
+
+        $formData = $request->input('form_data');
+        if (is_string($formData)) {
+            $formData = json_decode($formData, true) ?: [];
+        }
+
+        // بررسی خدماتی که پیوست فایل برای آن‌ها اجباری است (قبل از ذخیره هر فایلی)
+        $missingRequired = $this->findMissingRequiredAttachments($request, $formData);
+        if (!empty($missingRequired)) {
+            return response()->json([
+                'message' => 'برای این خدمت نیاز به فایل ضمیمه است: «' . implode('»، «', $missingRequired) . '»',
+                'errors'  => ['files' => ['برای این خدمت نیاز به فایل ضمیمه است.']],
+                'missing_services' => array_values($missingRequired),
+            ], 422);
+        }
 
         $issuedAt = Carbon::parse($validated['issued_at']);
         $issuedAt->setTime(now()->hour, now()->minute, now()->second);
@@ -291,11 +310,6 @@ class ArchiveController extends Controller
                     'doctor_id'     => $doctorId,
                 ];
             }
-        }
-
-        $formData = $request->input('form_data');
-        if (is_string($formData)) {
-            $formData = json_decode($formData, true) ?: [];
         }
 
         $patientMobile = $validated['mobile']
@@ -1264,5 +1278,61 @@ class ArchiveController extends Controller
         ];
 
         $archive->update(['history' => $history]);
+    }
+
+    /**
+     * پیدا کردن خدماتِ «پیوست اجباری» که برای آن‌ها هیچ فایلی ارسال نشده است.
+     * - خدمات ثبت‌شده از form_data['services'] خوانده می‌شوند.
+     * - شناسه خدمتِ هر فایل از file_services[] (هم‌اندیس با files[]) خوانده می‌شود.
+     *
+     * @return array<int,string> نام خدمات بدون فایل (کلید = شناسه خدمت)
+     */
+    private function findMissingRequiredAttachments(Request $request, $formData): array
+    {
+        $services = is_array($formData) ? ($formData['services'] ?? []) : [];
+        if (!is_array($services) || empty($services)) {
+            return [];
+        }
+
+        $resolveService = function ($sid) {
+            $sid = trim((string) $sid);
+            if ($sid === '' || $sid === 'other') {
+                return null;
+            }
+            $rec = ctype_digit($sid) ? Service::find((int) $sid) : null;
+            return $rec ?: Service::where('code', $sid)->first();
+        };
+
+        // شناسه خدماتی که حداقل یک فایل برایشان ارسال شده است
+        $serviceIdsWithFile = [];
+        $uploaded = $request->file('files', []);
+        $fileServices = $request->input('file_services', []);
+
+        foreach ($uploaded as $n => $file) {
+            if (!$file || !$file->isValid()) {
+                continue;
+            }
+            $rec = $resolveService($fileServices[$n] ?? '');
+            if ($rec) {
+                $serviceIdsWithFile[$rec->id] = true;
+            }
+        }
+
+        $missing = [];
+        foreach ($services as $s) {
+            if (!is_array($s)) {
+                continue;
+            }
+
+            $rec = !empty($s['serviceDbId'])
+                ? Service::find((int) $s['serviceDbId'])
+                : $resolveService($s['serviceId'] ?? '');
+
+            if ($rec && $rec->requires_attachment && !isset($serviceIdsWithFile[$rec->id])) {
+                $missing[$rec->id] = $rec->name;
+            }
+        }
+
+        return $missing;
     }
 }

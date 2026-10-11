@@ -15,6 +15,7 @@ class Service extends Model
         'code',
         'price',
         'is_active',
+        'requires_attachment',
         'has_signature',
         'signature_x',
         'signature_y',
@@ -25,14 +26,15 @@ class Service extends Model
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
-        'is_visit'  => 'boolean',
-        'price'     => 'integer',
-        'sort_order' => 'integer',
-        'has_signature' => 'boolean',
-        'signature_x'   => 'float',
-        'signature_y'   => 'float',
-        'signature_page' => 'string',
+        'is_active'           => 'boolean',
+        'requires_attachment' => 'boolean',
+        'is_visit'            => 'boolean',
+        'price'               => 'integer',
+        'sort_order'          => 'integer',
+        'has_signature'       => 'boolean',
+        'signature_x'         => 'float',
+        'signature_y'         => 'float',
+        'signature_page'      => 'string',
     ];
 
     // مسیر داخلی فایل در پاسخ API نمایش داده نمی‌شود؛ به‌جایش has_header برمی‌گردد

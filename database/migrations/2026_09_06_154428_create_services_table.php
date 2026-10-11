@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('code')->nullable()->unique();     // کد خدمت برای فاکتور
             $table->unsignedBigInteger('price')->default(0);  // تعرفه (تومان/ریال)
             $table->boolean('is_active')->default(true);      // وضعیت فعال/غیرفعال
+            $table->boolean('requires_attachment')->default(false); // آیا نیاز به فایل پیوست دارد؟
             $table->boolean('has_signature')->default(false); // درج خودکار مهر و امضا
             $table->float('signature_x')->nullable();         // موقعیت افقی (میلی‌متر از لبه چپ)
             $table->float('signature_y')->nullable();         // موقعیت عمودی (میلی‌متر از لبه بالا)

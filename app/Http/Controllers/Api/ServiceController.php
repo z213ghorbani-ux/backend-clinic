@@ -45,6 +45,8 @@ class ServiceController extends Controller
             'signature_x'    => 'nullable|numeric|min:0|max:210',
             'signature_y'    => 'nullable|numeric|min:0|max:297',
             'signature_page' => 'nullable|string|in:first,last',
+            // پیوست فایل برای این خدمت در پنل جوابدهی اجباری است
+            'requires_attachment' => 'nullable|boolean',
         ], [
             'name.required'   => 'نام خدمت الزامی است.',
             'code.unique'     => 'این کد خدمت قبلاً ثبت شده است.',
@@ -65,6 +67,8 @@ class ServiceController extends Controller
             'signature_x'    => $request->filled('signature_x') ? (float) $request->input('signature_x') : null,
             'signature_y'    => $request->filled('signature_y') ? (float) $request->input('signature_y') : null,
             'signature_page' => $validated['signature_page'] ?? 'last',
+            // پیوست اجباری
+            'requires_attachment' => $request->boolean('requires_attachment'),
         ]);
 
         return response()->json([
@@ -92,6 +96,8 @@ class ServiceController extends Controller
             'signature_x'    => 'nullable|numeric|min:0|max:210',
             'signature_y'    => 'nullable|numeric|min:0|max:297',
             'signature_page' => 'nullable|string|in:first,last',
+            // پیوست فایل برای این خدمت در پنل جوابدهی اجباری است
+            'requires_attachment' => 'nullable|boolean',
         ], [
             'name.required'   => 'نام خدمت الزامی است.',
             'code.unique'     => 'این کد خدمت قبلاً ثبت شده است.',
@@ -112,6 +118,8 @@ class ServiceController extends Controller
             'signature_x'    => $request->filled('signature_x') ? (float) $request->input('signature_x') : null,
             'signature_y'    => $request->filled('signature_y') ? (float) $request->input('signature_y') : null,
             'signature_page' => $validated['signature_page'] ?? 'last',
+            // پیوست اجباری
+            'requires_attachment' => $request->boolean('requires_attachment'),
         ]);
 
         return response()->json([
