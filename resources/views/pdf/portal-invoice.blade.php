@@ -12,6 +12,8 @@
             margin-left: 10mm;
             margin-right: 10mm;
             margin-footer: 5mm;
+            odd-footer-name: clinicFooter;
+            even-footer-name: clinicFooter;
         }
 
         body {
@@ -165,44 +167,17 @@
             font-size: 10px;
         }
 
-        /* استایل فوتر دقیقاً مطابق تصویر */
         .footer-table {
             width: 100%;
+            border-top: 2.5px solid #0f766e;
             border-collapse: collapse;
-            border-top: 2.5px solid #0d796b;
-            padding-top: 5px;
-            font-size: 9px;
-            color: #1a202c;
-            line-height: 1.5;
         }
 
         .footer-table td {
-            vertical-align: top;
             padding-top: 4px;
-        }
-
-        .footer-left {
-            text-align: left;
-            direction: ltr;
-        }
-
-        .footer-left a,
-        .footer-left .site-url {
-            color: #0d796b;
-            font-weight: bold;
-            font-size: 11px;
-            text-decoration: none;
-            letter-spacing: 0.2px;
-        }
-
-        .footer-right {
-            text-align: right;
-            direction: rtl;
-        }
-
-        .footer-phone {
-            direction: ltr;
-            display: inline-block;
+            font-size: 9px;
+            color: #2d3748;
+            vertical-align: top;
         }
     </style>
 </head>
@@ -214,24 +189,24 @@
     $hasPrescription = trim((string) ($doctorPrescriptionText ?? '')) !== '';
     @endphp
 
-    {{-- تعریف فوتر دائمی برای تمام صفحات --}}
+    {{-- تعریف فوتر --}}
     <htmlpagefooter name="clinicFooter">
-        <table class="footer-table">
+        <table class="footer-table" dir="ltr">
             <tr>
-                <td style="width: 35%;" class="footer-left">
-                    <span class="site-url">www.TehranEP.center</span><br>
-                    <span>Tel &amp; WhatsApp: +98(21) 88887270</span>
+                <td style="width: 38%; text-align: left; direction: ltr;">
+                    <strong style="color: #0f766e; font-size: 11px;">www.TehranEP.center</strong><br>
+                    Tel &amp; WhatsApp: +98(21) 88887270
                 </td>
-                <td style="width: 65%;" class="footer-right">
-                    <span>تهران، خیابان ولیعصر، خیابان توانیر، بالاتر از بیمارستان دی، ساختمان شماره ۵</span><br>
-                    <span>تلفن: <span class="footer-phone">۰۲۱ ۸۸۸۸۷۲۷۰</span></span>
+                <td style="width: 62%; text-align: right; direction: rtl;">
+                    <strong>تهران، خیابان ولیعصر، خیابان توانیر، بالاتر از بیمارستان دی، ساختمان شماره ۵</strong><br>
+                    تلفن: {{ fa_num('021 88887270') }}
                 </td>
             </tr>
         </table>
     </htmlpagefooter>
 
-    {{-- فعال‌سازی برای تمام صفحات (شامل صفحه جاری و صفحات بعد از pagebreak) --}}
-    <sethtmlpagefooter name="clinicFooter" page="all" value="1" />
+    {{-- فعال‌سازی برای صفحه اول --}}
+    <sethtmlpagefooter name="clinicFooter" value="on" />
 
     {{-- ===================== صفحه ۱ ===================== --}}
     <table class="head-table">
@@ -300,6 +275,8 @@
     </table>
 
     <pagebreak />
+    {{-- تاکید به mPDF برای اعمال مجدد فوتر در انتهای صفحه دوم --}}
+    <sethtmlpagefooter name="clinicFooter" value="on" />
 
     {{-- ===================== صفحه ۲ ===================== --}}
     <table class="head-table">
