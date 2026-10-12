@@ -198,7 +198,7 @@
                     Tel &amp; WhatsApp: +98(21) 88887270
                 </td>
                 <td style="width: 62%; text-align: right; direction: rtl;">
-                    <strong>تهران، خیابان ولیعصر، خیابان توانیر، بالاتر از بیمارستان دی، ساختمان شماره ۵</strong><br>
+                    <strong>تهران – خيابان وليعصر – خيابان توانير – نرسيده به ميدان – نبش روانسر</strong><br>
                     تلفن: {{ fa_num('021 88887270') }}
                 </td>
             </tr>
@@ -218,7 +218,7 @@
             </td>
             <td style="width: 54%; text-align: right;">
                 <div class="clinic-title">مرکز آریتمی تهران</div>
-                <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
+                <div class="clinic-sub">تشخ يص و درمان اختلالات ضربان قلب</div>
             </td>
             <td class="meta" style="width: 30%;">
                 <div><strong>شماره پرونده:</strong> #{{ fa_num($invoice['file_number'] ?? '---') }}</div>
@@ -288,7 +288,7 @@
             </td>
             <td style="width: 54%; text-align: right;">
                 <div class="clinic-title">مرکز آریتمی تهران</div>
-                <div class="clinic-sub">صورتحساب رسمی خدمات تشخیصی و درمانی</div>
+                <div class="clinic-sub">تشخ يص و درمان اختلالات ضربان قلب</div>
             </td>
             <td class="meta" style="width: 30%;">
                 <div><strong>شماره پرونده:</strong> #{{ fa_num($invoice['file_number'] ?? '---') }}</div>
